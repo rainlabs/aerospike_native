@@ -2,7 +2,7 @@ require 'mkmf'
 
 extension_name = 'aerospike_native'
 #$CXXFLAGS = ' -Wextra -pedantic -c -Wall -std=c++0x'
-$LDFLAGS  = ' -laerospike'
+$LDFLAGS  = ' -lcrypto -laerospike'
 # have_library('aerospike')
 
 #dir_config(extension_name)       # The destination

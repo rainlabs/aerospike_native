@@ -3,8 +3,7 @@
 
 #include "aerospike_native.h"
 
-extern VALUE Client;
-
+extern VALUE ClientClass;
 void define_client();
 
 #endif // CLIENT_H

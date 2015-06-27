@@ -1,11 +1,15 @@
 //#include <iostream>
 #include "aerospike_native.h"
 #include "client.h"
+#include "key.h"
+#include "operation.h"
 
-VALUE AerospikeNative;
+VALUE AerospikeNativeClass;
 
 void Init_aerospike_native()
 {
-    AerospikeNative = rb_define_module("AerospikeNative");
+    AerospikeNativeClass = rb_define_module("AerospikeNative");
     define_client();
+    define_key();
+    define_operation();
 }

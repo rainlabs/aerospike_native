@@ -4,7 +4,7 @@
 #include <ruby.h>
 #include <aerospike/aerospike.h>
 
-extern VALUE AerospikeNative;
+extern VALUE AerospikeNativeClass;
 
 #endif // AEROSPIKE_NATIVE_H
 
