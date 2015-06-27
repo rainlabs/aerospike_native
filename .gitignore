@@ -12,6 +12,7 @@
 *.o
 *.a
 mkmf.log
+ext/aerospike_native/Makefile
 
 .idea/
 aerospike_native.config
