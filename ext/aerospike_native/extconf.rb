@@ -5,8 +5,8 @@ extension_name = 'aerospike_native'
 find_executable('make')
 find_executable('git')
 have_library('crypto')
-have_library('libc')
-have_library('openssl')
+#have_library('libc')
+#have_library('openssl')
 
 headers_path = File.expand_path(File.join(File.dirname(__FILE__), "include"))
 lib_path = File.expand_path(File.join(File.dirname(__FILE__), "lib"))
