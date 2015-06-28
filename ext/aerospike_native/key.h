@@ -5,6 +5,7 @@
 
 extern VALUE KeyClass;
 void define_native_key();
+void check_aerospike_key(VALUE vKey);
 
 #endif // KEY_H
 

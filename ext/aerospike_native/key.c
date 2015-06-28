@@ -15,6 +15,15 @@ VALUE key_initialize(VALUE vSelf, VALUE vNamespace, VALUE vSet, VALUE vValue)
     return vSelf;
 }
 
+void check_aerospike_key(VALUE vKey)
+{
+    char sKeyName[] = "AerospikeNative::Key";
+
+    if (strcpy(sKeyName, rb_obj_classname(vKey)) != 0) {
+        rb_raise(rb_eArgError, "Incorrect type (expected %s)", sKeyName);
+    }
+}
+
 void define_native_key()
 {
     KeyClass = rb_define_class_under(AerospikeNativeClass, "Key", rb_cObject);
