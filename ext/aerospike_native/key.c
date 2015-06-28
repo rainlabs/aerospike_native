@@ -19,7 +19,7 @@ void check_aerospike_key(VALUE vKey)
 {
     char sKeyName[] = "AerospikeNative::Key";
 
-    if (strcpy(sKeyName, rb_obj_classname(vKey)) != 0) {
+    if (strcmp(sKeyName, rb_obj_classname(vKey)) != 0) {
         rb_raise(rb_eArgError, "Incorrect type (expected %s)", sKeyName);
     }
 }

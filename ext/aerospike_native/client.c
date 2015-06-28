@@ -189,11 +189,82 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 
 VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 {
+    VALUE vKey;
+    VALUE vSettings;
+    VALUE vParams[4];
+
+    aerospike *ptr;
+    as_key key;
+    as_error err;
+    as_record* record = NULL;
+    as_policy_read policy;
+    as_bin bin;
+
+    VALUE vNamespace, vSet, vKeyValue;
+    int n = 0;
+
     if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
     }
 
-    return Qtrue;
+    vKey = vArgs[0];
+    check_aerospike_key(vKey);
+
+    as_policy_read_init(&policy);
+
+    if (argc == 2) {
+        vSettings = vArgs[1];
+
+        switch (TYPE(vSettings)) {
+        case T_NIL:
+            break;
+        case T_HASH: {
+            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
+            if (TYPE(vTimeout) == T_FIXNUM) {
+                policy.timeout = NUM2UINT( vTimeout );
+            }
+            break;
+        }
+        default:
+            /* raise exception */
+            Check_Type(vSettings, T_HASH);
+            break;
+        }
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+    vNamespace = rb_iv_get(vKey, "@namespace");
+    vSet = rb_iv_get(vKey, "@set");
+    vKeyValue = rb_iv_get(vKey, "@value");
+    as_key_init_str(&key, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vKeyValue ));
+
+    if (aerospike_key_get(ptr, &err, &policy, &key, &record) != AEROSPIKE_OK) {
+        printf("error\n");
+        fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
+    }
+    rb_iv_set(vKey, "@digest", rb_str_new( record->key.digest.value, AS_DIGEST_VALUE_SIZE));
+
+    vParams[0] = vKey;
+    vParams[1] = rb_hash_new();
+    vParams[2] = UINT2NUM(record->gen);
+    vParams[3] = UINT2NUM(record->ttl);
+
+    for(n = 0; n < record->bins.size; n++) {
+        bin = record->bins.entries[n];
+        switch( as_val_type(bin.valuep) ) {
+        case AS_INTEGER:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
+            break;
+        case AS_STRING:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
+            break;
+        case AS_UNDEF:
+        default:
+            break;
+        }
+    }
+
+    return rb_class_new_instance(4, vParams, RecordClass);
 }
 
 VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
@@ -317,4 +388,5 @@ void define_client()
     rb_define_method(ClientClass, "initialize", client_initialize, -1);
     rb_define_method(ClientClass, "operate", client_operate, -1);
     rb_define_method(ClientClass, "put", client_put, -1);
+    rb_define_method(ClientClass, "get", client_get, -1);
 }
