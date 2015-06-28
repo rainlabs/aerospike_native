@@ -26,6 +26,9 @@ VALUE operation_write(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 VALUE operation_increment(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 {
     VALUE vArgs[3];
+
+    Check_Type(vBinValue, T_FIXNUM);
+
     vArgs[0] = INT2NUM(INCREMENT);
     vArgs[1] = vBinName;
     vArgs[2] = vBinValue;

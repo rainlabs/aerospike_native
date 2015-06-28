@@ -135,13 +135,26 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
 
         switch( op_type ) {
         case WRITE:
+            printf("write\n");
+            as_operations_add_write_int64(&ops, StringValueCStr( bin_name ), NUM2INT( bin_value ));
+//            switch( TYPE(bin_value) ) {
+//            case T_STRING:
+//                as_operations_add_write_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
+//                break;
+//            case T_FIXNUM:
+//                as_operations_add_write_int64(&ops, StringValueCStr( bin_name ), NUM2INT( bin_value ));
+//                break;
+//            }
+
             break;
         case INCREMENT:
+            printf("increment\n");
             as_operations_add_incr(&ops, StringValueCStr( bin_name ), NUM2INT( bin_value ));
             break;
         }
     }
 
+    printf("test\n");
     printf("prepare key\n");
 
     vNamespace = rb_iv_get(vKey, "@namespace");
