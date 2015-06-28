@@ -14,6 +14,8 @@
 mkmf.log
 ext/aerospike_native/Makefile
 ext/aerospike_native/aerospike-client-c/
+ext/aerospike_native/lib/
+ext/aerospike_native/include/
 
 .idea/
 aerospike_native.config
