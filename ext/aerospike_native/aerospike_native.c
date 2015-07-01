@@ -10,6 +10,6 @@ void Init_aerospike_native()
 {
     AerospikeNativeClass = rb_define_module("AerospikeNative");
     define_client();
-    define_key();
+    define_native_key();
     define_operation();
 }

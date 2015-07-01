@@ -2,6 +2,7 @@
 
 require 'rake/extensiontask'
 require 'rubygems/package_task'
+require 'aerospike_native/version'
 
 ##
 # Rake::ExtensionTask comes from the rake-compiler and understands how to
@@ -19,8 +20,8 @@ Rake::ExtensionTask.new 'aerospike_native' do |ext|
   ext.lib_dir = 'lib/aerospike_native'
 end
 
-s = Gem::Specification.new 'aerospike_native', '0.0.1' do |s|
-  s.summary = 'simple aerospike extenstion'
+s = Gem::Specification.new 'aerospike_native', AerospikeNative::VERSION do |s|
+  s.summary = 'Aerospike ruby client with c extension'
   s.authors = %w[zyablitskiy@gmail.com]
 
   # this tells RubyGems to build an extension upon install

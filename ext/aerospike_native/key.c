@@ -15,7 +15,7 @@ VALUE key_initialize(VALUE vSelf, VALUE vNamespace, VALUE vSet, VALUE vValue)
     return vSelf;
 }
 
-void define_key()
+void define_native_key()
 {
     KeyClass = rb_define_class_under(AerospikeNativeClass, "Key", rb_cObject);
     rb_define_method(KeyClass, "initialize", key_initialize, 3);
