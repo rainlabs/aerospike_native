@@ -30,6 +30,7 @@ Or install it yourself as:
 * Supported timeout for policies
 * Supported digest keys
 * Supported exceptions (`AerospikeNative::Exception`) with several error codes constants like `AerospikeNative::Exception::ERR_CLIENT`
+* Index management (`create_index` and `drop_index`)
 
 ## Usage
 
