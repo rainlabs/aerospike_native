@@ -5,6 +5,7 @@
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
+#include <aerospike/aerospike_index.h>
 
 VALUE ClientClass;
 
@@ -434,16 +435,13 @@ VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vSettings = Qnil;
-    VALUE vParams[4];
 
     aerospike *ptr;
     as_key* key;
     as_error err;
     as_policy_read policy;
     as_record* record = NULL;
-    as_bin bin;
     as_status status;
-    long n = 0;
 
     if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
@@ -587,6 +585,121 @@ VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
     return rb_class_new_instance(4, vParams, RecordClass);
 }
 
+VALUE client_create_index(int argc, VALUE* argv, VALUE vSelf)
+{
+    VALUE vSettings = Qnil;
+    VALUE vNamespace, vSet, vBinName, vIndexName;
+
+    aerospike *ptr;
+    as_error err;
+    as_policy_info policy;
+    bool is_integer = true;
+
+    if (argc > 5 || argc < 4) {  // there should only be 4 or 5 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 4..5)", argc);
+    }
+
+    vNamespace = argv[0];
+    Check_Type(vNamespace, T_STRING);
+
+    vSet = argv[1];
+    Check_Type(vSet, T_STRING);
+
+    vBinName = argv[2];
+    Check_Type(vBinName, T_STRING);
+
+    vIndexName = argv[3];
+    Check_Type(vIndexName, T_STRING);
+
+    if (argc == 5) {
+        vSettings = argv[4];
+
+        switch (TYPE(vSettings)) {
+        case T_NIL:
+            break;
+        case T_HASH: {
+            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
+            VALUE vType = rb_hash_aref(vSettings, rb_str_new2("type"));
+            if (TYPE(vTimeout) == T_FIXNUM) {
+                policy.timeout = NUM2UINT( vTimeout );
+            }
+            if (TYPE(vType) == T_FIXNUM) {
+                if (FIX2INT(vType) == 1) {
+                    is_integer = false;
+                }
+            }
+            break;
+        }
+        default:
+            /* raise exception */
+            Check_Type(vSettings, T_HASH);
+            break;
+        }
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+
+    if (is_integer) {
+        if (aerospike_index_integer_create(ptr, &err, &policy, StringValueCStr(vNamespace), StringValueCStr(vSet), StringValueCStr(vBinName), StringValueCStr(vIndexName)) != AEROSPIKE_OK) {
+            raise_aerospike_exception(err.code, err.message);
+        }
+    } else {
+        if (aerospike_index_string_create(ptr, &err, &policy, StringValueCStr(vNamespace), StringValueCStr(vSet), StringValueCStr(vBinName), StringValueCStr(vIndexName)) != AEROSPIKE_OK) {
+            raise_aerospike_exception(err.code, err.message);
+        }
+    }
+
+    return Qtrue;
+}
+
+VALUE client_drop_index(int argc, VALUE* argv, VALUE vSelf)
+{
+    VALUE vSettings = Qnil;
+    VALUE vNamespace, vIndexName;
+
+    aerospike *ptr;
+    as_error err;
+    as_policy_info policy;
+
+    if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
+    }
+
+    vNamespace = argv[0];
+    Check_Type(vNamespace, T_STRING);
+
+    vIndexName = argv[1];
+    Check_Type(vIndexName, T_STRING);
+
+    if (argc == 3) {
+        vSettings = argv[2];
+
+        switch (TYPE(vSettings)) {
+        case T_NIL:
+            break;
+        case T_HASH: {
+            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
+            if (TYPE(vTimeout) == T_FIXNUM) {
+                policy.timeout = NUM2UINT( vTimeout );
+            }
+            break;
+        }
+        default:
+            /* raise exception */
+            Check_Type(vSettings, T_HASH);
+            break;
+        }
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+
+    if (aerospike_index_remove(ptr, &err, &policy, StringValueCStr(vNamespace), StringValueCStr(vIndexName)) != AEROSPIKE_OK) {
+        raise_aerospike_exception(err.code, err.message);
+    }
+
+    return Qtrue;
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -598,4 +711,9 @@ void define_client()
     rb_define_method(ClientClass, "remove", client_remove, -1);
     rb_define_method(ClientClass, "exists?", client_exists, -1);
     rb_define_method(ClientClass, "select", client_select, -1);
+    rb_define_method(ClientClass, "create_index", client_create_index, -1);
+    rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
+
+    rb_define_const(ClientClass, "INTEGER", INT2FIX(0));
+    rb_define_const(ClientClass, "STRING", INT2FIX(1));
 }
