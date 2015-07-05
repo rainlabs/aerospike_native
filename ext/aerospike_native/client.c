@@ -160,6 +160,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
         raise_aerospike_exception(err.code, err.message);
     }
 
+    as_record_destroy(&record);
     return Qtrue;
 }
 
@@ -234,6 +235,7 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
         }
     }
 
+    as_record_destroy(record);
     return rb_class_new_instance(4, vParams, RecordClass);
 }
 
@@ -365,6 +367,7 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
             }
         }
 
+        as_record_destroy(record);
         return rb_class_new_instance(4, vParams, RecordClass);
     } else {
         if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
@@ -424,6 +427,175 @@ VALUE client_remove(int argc, VALUE* argv, VALUE vSelf)
     return Qtrue;
 }
 
+VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
+{
+    VALUE vKey;
+    VALUE vSettings = Qnil;
+    VALUE vParams[4];
+
+    aerospike *ptr;
+    as_key* key;
+    as_error err;
+    as_policy_read policy;
+    as_record* record = NULL;
+    as_bin bin;
+    long n = 0;
+
+    if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
+    }
+
+    vKey = argv[0];
+    check_aerospike_key(vKey);
+
+    if (argc == 2) {
+        vSettings = argv[1];
+
+        switch (TYPE(vSettings)) {
+        case T_NIL:
+            break;
+        case T_HASH: {
+            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
+            if (TYPE(vTimeout) == T_FIXNUM) {
+                policy.timeout = NUM2UINT( vTimeout );
+            }
+            break;
+        }
+        default:
+            /* raise exception */
+            Check_Type(vSettings, T_HASH);
+            break;
+        }
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+    Data_Get_Struct(vKey, as_key, key);
+
+    if (aerospike_key_exists(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
+        raise_aerospike_exception(err.code, err.message);
+    }
+
+    vParams[0] = vKey;
+    vParams[1] = rb_hash_new();
+    vParams[2] = UINT2NUM(record->gen);
+    vParams[3] = UINT2NUM(record->ttl);
+
+    for(n = 0; n < record->bins.size; n++) {
+        bin = record->bins.entries[n];
+        switch( as_val_type(bin.valuep) ) {
+        case AS_INTEGER:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
+            break;
+        case AS_STRING:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
+            break;
+        case AS_UNDEF:
+        default:
+            break;
+        }
+    }
+
+    as_record_destroy(record);
+    return rb_class_new_instance(4, vParams, RecordClass);
+}
+
+VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
+{
+    VALUE vKey;
+    VALUE vArray;
+    VALUE vSettings = Qnil;
+    VALUE vParams[4];
+
+    aerospike *ptr;
+    as_key* key;
+    as_error err;
+    as_policy_read policy;
+    as_record* record = NULL;
+    as_bin bin;
+    long n = 0, idx = 0;
+
+    if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
+    }
+
+    vKey = argv[0];
+    check_aerospike_key(vKey);
+    vArray = argv[1];
+
+    Check_Type(vArray, T_ARRAY);
+    idx = RARRAY_LEN(vArray);
+    if (idx == 0) {
+        return Qfalse;
+    }
+
+    if (argc == 3) {
+        vSettings = argv[2];
+
+        switch (TYPE(vSettings)) {
+        case T_NIL:
+            break;
+        case T_HASH: {
+            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
+            if (TYPE(vTimeout) == T_FIXNUM) {
+                policy.timeout = NUM2UINT( vTimeout );
+            }
+            break;
+        }
+        default:
+            /* raise exception */
+            Check_Type(vSettings, T_HASH);
+            break;
+        }
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+    Data_Get_Struct(vKey, as_key, key);
+    const char* bins[idx];
+
+    for(n = 0; n < idx; n++) {
+        VALUE bin_name = rb_ary_entry(vArray, n);
+
+        Check_Type(bin_name, T_STRING);
+        char* name = StringValueCStr( bin_name );
+        bins[n] = malloc(strlen(name) * sizeof(char) + 1);
+        memset(bins[n], '\0', strlen(name) + 1);
+        strcpy(bins[n], name);
+    }
+
+    if (aerospike_key_select(ptr, &err, &policy, key, bins, &record) != AEROSPIKE_OK) {
+        for(n = 0; n < idx; n++) {
+            free(bins[n]);
+        }
+        raise_aerospike_exception(err.code, err.message);
+    }
+    for(n = 0; n < idx; n++) {
+        free(bins[n]);
+    }
+
+    vParams[0] = vKey;
+    vParams[1] = rb_hash_new();
+    vParams[2] = UINT2NUM(record->gen);
+    vParams[3] = UINT2NUM(record->ttl);
+
+    for(n = 0; n < record->bins.size; n++) {
+        bin = record->bins.entries[n];
+        switch( as_val_type(bin.valuep) ) {
+        case AS_INTEGER:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
+            break;
+        case AS_STRING:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
+            break;
+        case AS_UNDEF:
+        default:
+            break;
+        }
+    }
+
+    as_record_destroy(record);
+    return rb_class_new_instance(4, vParams, RecordClass);
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -433,4 +605,6 @@ void define_client()
     rb_define_method(ClientClass, "put", client_put, -1);
     rb_define_method(ClientClass, "get", client_get, -1);
     rb_define_method(ClientClass, "remove", client_remove, -1);
+    rb_define_method(ClientClass, "exists?", client_exists, -1);
+    rb_define_method(ClientClass, "select", client_select, -1);
 }
