@@ -4,8 +4,16 @@ VALUE OperationClass;
 
 VALUE operation_initialize(VALUE vSelf, VALUE vOpType, VALUE vBinName, VALUE vBinValue)
 {
+    int op_type = 0;
+
     Check_Type(vOpType, T_FIXNUM);
-    Check_Type(vBinName, T_STRING);
+    op_type = NUM2INT(vOpType);
+
+    if (op_type != OPERATION_TOUCH) {
+        Check_Type(vBinName, T_STRING);
+    } else {
+        Check_Type(vBinName, T_NIL);
+    }
 
     rb_iv_set(vSelf, "@op_type", vOpType);
     rb_iv_set(vSelf, "@bin_name", vBinName);
@@ -59,6 +67,26 @@ VALUE operation_increment(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
     return rb_class_new_instance(3, vArgs, vSelf);
 }
 
+VALUE operation_touch(VALUE vSelf)
+{
+    VALUE vArgs[3];
+
+    vArgs[0] = INT2NUM(OPERATION_TOUCH);
+    vArgs[1] = Qnil;
+    vArgs[2] = Qnil;
+    return rb_class_new_instance(3, vArgs, vSelf);
+}
+
+VALUE operation_read(VALUE vSelf, VALUE vBinName)
+{
+    VALUE vArgs[3];
+
+    vArgs[0] = INT2NUM(OPERATION_READ);
+    vArgs[1] = vBinName;
+    vArgs[2] = Qnil;
+    return rb_class_new_instance(3, vArgs, vSelf);
+}
+
 void define_operation()
 {
     OperationClass = rb_define_class_under(AerospikeNativeClass, "Operation", rb_cObject);
@@ -67,6 +95,8 @@ void define_operation()
     rb_define_singleton_method(OperationClass, "append", operation_append, 2);
     rb_define_singleton_method(OperationClass, "prepend", operation_prepend, 2);
     rb_define_singleton_method(OperationClass, "increment", operation_increment, 2);
+    rb_define_singleton_method(OperationClass, "touch", operation_touch, 0);
+    rb_define_singleton_method(OperationClass, "read", operation_read, 1);
     rb_define_attr(OperationClass, "op_type", 1, 0);
     rb_define_attr(OperationClass, "bin_name", 1, 0);
     rb_define_attr(OperationClass, "bin_value", 1, 0);

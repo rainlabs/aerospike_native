@@ -242,13 +242,17 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
     VALUE vKey;
     VALUE vOperations;
     VALUE vSettings = Qnil;
+    VALUE vParams[4];
     long idx = 0, n = 0;
+    bool isset_read = false;
 
     aerospike *ptr;
     as_operations ops;
     as_key* key;
     as_error err;
     as_policy_operate policy;
+    as_record* record = NULL;
+    as_bin bin;
 
     if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
@@ -308,6 +312,8 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
 
             break;
         case OPERATION_READ:
+            isset_read = true;
+            as_operations_add_read(&ops, StringValueCStr( bin_name ));
             break;
         case OPERATION_INCREMENT:
             as_operations_add_incr(&ops, StringValueCStr( bin_name ), NUM2INT( bin_value ));
@@ -331,11 +337,89 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
 
     Data_Get_Struct(vKey, as_key, key);
 
-    if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
-        raise_aerospike_exception(err.code, err.message);
+    if (isset_read) {
+        if (aerospike_key_operate(ptr, &err, &policy, key, &ops, &record) != AEROSPIKE_OK) {
+            as_operations_destroy(&ops);
+            raise_aerospike_exception(err.code, err.message);
+        }
+
+        as_operations_destroy(&ops);
+
+        vParams[0] = vKey;
+        vParams[1] = rb_hash_new();
+        vParams[2] = UINT2NUM(record->gen);
+        vParams[3] = UINT2NUM(record->ttl);
+
+        for(n = 0; n < record->bins.size; n++) {
+            bin = record->bins.entries[n];
+            switch( as_val_type(bin.valuep) ) {
+            case AS_INTEGER:
+                rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
+                break;
+            case AS_STRING:
+                rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
+                break;
+            case AS_UNDEF:
+            default:
+                break;
+            }
+        }
+
+        return rb_class_new_instance(4, vParams, RecordClass);
+    } else {
+        if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
+            as_operations_destroy(&ops);
+            raise_aerospike_exception(err.code, err.message);
+        }
+
+        as_operations_destroy(&ops);
+        return Qtrue;
+    }
+}
+
+VALUE client_remove(int argc, VALUE* argv, VALUE vSelf)
+{
+    VALUE vKey;
+    VALUE vSettings = Qnil;
+
+    aerospike *ptr;
+    as_key* key;
+    as_error err;
+    as_policy_remove policy;
+
+    if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
     }
 
-    as_operations_destroy(&ops);
+    vKey = argv[0];
+    check_aerospike_key(vKey);
+
+    if (argc == 2) {
+        vSettings = argv[1];
+
+        switch (TYPE(vSettings)) {
+        case T_NIL:
+            break;
+        case T_HASH: {
+            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
+            if (TYPE(vTimeout) == T_FIXNUM) {
+                policy.timeout = NUM2UINT( vTimeout );
+            }
+            break;
+        }
+        default:
+            /* raise exception */
+            Check_Type(vSettings, T_HASH);
+            break;
+        }
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+    Data_Get_Struct(vKey, as_key, key);
+
+    if (aerospike_key_remove(ptr, &err, &policy, key) != AEROSPIKE_OK) {
+        raise_aerospike_exception(err.code, err.message);
+    }
 
     return Qtrue;
 }
@@ -348,4 +432,5 @@ void define_client()
     rb_define_method(ClientClass, "operate", client_operate, -1);
     rb_define_method(ClientClass, "put", client_put, -1);
     rb_define_method(ClientClass, "get", client_get, -1);
+    rb_define_method(ClientClass, "remove", client_remove, -1);
 }

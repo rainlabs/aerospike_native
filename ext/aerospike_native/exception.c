@@ -40,6 +40,6 @@ void raise_aerospike_exception(int iCode, char* sMessage)
     VALUE vException;
 
     vException = rb_exc_new2(ExceptionClass, sMessage);
-    rb_iv_set(vException, "@code", iCode);
+    rb_iv_set(vException, "@code", INT2FIX(iCode));
     rb_exc_raise(vException);
 }
