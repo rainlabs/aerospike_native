@@ -157,6 +157,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
     Data_Get_Struct(vKey, as_key, key);
 
     if (aerospike_key_put(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
+        as_record_destroy(&record);
         raise_aerospike_exception(err.code, err.message);
     }
 
@@ -212,6 +213,7 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     Data_Get_Struct(vKey, as_key, key);
 
     if (aerospike_key_get(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
+        as_record_destroy(record);
         raise_aerospike_exception(err.code, err.message);
     }
 
@@ -342,6 +344,7 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
     if (isset_read) {
         if (aerospike_key_operate(ptr, &err, &policy, key, &ops, &record) != AEROSPIKE_OK) {
             as_operations_destroy(&ops);
+            as_record_destroy(record);
             raise_aerospike_exception(err.code, err.message);
         }
 
@@ -439,6 +442,7 @@ VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
     as_policy_read policy;
     as_record* record = NULL;
     as_bin bin;
+    as_status status;
     long n = 0;
 
     if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
@@ -471,32 +475,18 @@ VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
     Data_Get_Struct(vSelf, aerospike, ptr);
     Data_Get_Struct(vKey, as_key, key);
 
-    if (aerospike_key_exists(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
+    status = aerospike_key_exists(ptr, &err, &policy, key, &record);
+    if (status != AEROSPIKE_OK && status != AEROSPIKE_ERR_RECORD_NOT_FOUND) {
+        as_record_destroy(record);
         raise_aerospike_exception(err.code, err.message);
     }
+    as_record_destroy(record);
 
-    vParams[0] = vKey;
-    vParams[1] = rb_hash_new();
-    vParams[2] = UINT2NUM(record->gen);
-    vParams[3] = UINT2NUM(record->ttl);
-
-    for(n = 0; n < record->bins.size; n++) {
-        bin = record->bins.entries[n];
-        switch( as_val_type(bin.valuep) ) {
-        case AS_INTEGER:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-            break;
-        case AS_STRING:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-            break;
-        case AS_UNDEF:
-        default:
-            break;
-        }
+    if (status == AEROSPIKE_ERR_RECORD_NOT_FOUND) {
+        return Qfalse;
     }
 
-    as_record_destroy(record);
-    return rb_class_new_instance(4, vParams, RecordClass);
+    return Qtrue;
 }
 
 VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
@@ -566,6 +556,7 @@ VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
         for(n = 0; n < idx; n++) {
             free(bins[n]);
         }
+        as_record_destroy(record);
         raise_aerospike_exception(err.code, err.message);
     }
     for(n = 0; n < idx; n++) {
