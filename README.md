@@ -20,11 +20,13 @@ Or install it yourself as:
     
 ## Current status
 
-* `operate` command with _write_, _increment_, _append_, _prepend_
+* `operate` command with _write_, _increment_, _append_, _prepend_, _touch_
 * `put` command
-* `get` command without digest keys support
-* Raw (bytes) type is not supported
+* `get` command
+* :disappointed: Raw (bytes) type is not supported
 * Supported timeout for policies
+* Supported digest keys
+* Supported exceptions (`AerospikeNative::Exception`) with several error codes constants like `AerospikeNative::Exception::ERR_CLIENT`
 
 ## Usage
 
