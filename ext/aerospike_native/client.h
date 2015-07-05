@@ -3,7 +3,7 @@
 
 #include "aerospike_native.h"
 
-extern VALUE ClientClass;
+RUBY_EXTERN VALUE ClientClass;
 void define_client();
 
 #endif // CLIENT_H
