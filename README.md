@@ -1,6 +1,6 @@
 # AerospikeNative
 
-Ruby [aerospike](http://www.aerospike.com/) client with c extension (unstable)
+Ruby [aerospike](http://www.aerospike.com/) client with c extension
 
 ## Installation
 
@@ -20,9 +20,12 @@ Or install it yourself as:
     
 ## Current status
 
-* `operate` command with _write_, _increment_, _append_, _prepend_, _touch_
+* `operate` command with all operation types
 * `put` command
 * `get` command
+* `remove` command
+* `select` command
+* `exixts?` command
 * :disappointed: Raw (bytes) type is not supported
 * Supported timeout for policies
 * Supported digest keys
@@ -38,7 +41,10 @@ key = AerospikeNative::Key.new('test', 'test', 'sample')
 client.put(key, {'bin1' => 1, 'bin2' => 'test'}, {'timeout' => 1})
 client.operate(key, [AerospikeNative::Operation.write('bin3', 25), AerospikeNative::Operation.increment('bin1', 2), AerospikeNative::Operation.append('bin1', '_aerospike')], {'timeout' => 1})
 
+client.exists?(key)
 record = client.get(key)
+record = client.select(key, ['bin2', 'bin1'])
+client.remove(key)
 ```
 
 ## Contributing
