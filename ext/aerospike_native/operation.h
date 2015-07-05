@@ -3,7 +3,7 @@
 
 #include "aerospike_native.h"
 
-extern VALUE OperationClass;
+RUBY_EXTERN VALUE OperationClass;
 void define_operation();
 
 enum OperationType {

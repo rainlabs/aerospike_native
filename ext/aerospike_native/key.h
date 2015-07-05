@@ -3,7 +3,7 @@
 
 #include "aerospike_native.h"
 
-extern VALUE KeyClass;
+RUBY_EXTERN VALUE KeyClass;
 void define_native_key();
 void check_aerospike_key(VALUE vKey);
 

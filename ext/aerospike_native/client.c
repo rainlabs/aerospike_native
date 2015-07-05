@@ -2,6 +2,7 @@
 #include "operation.h"
 #include "key.h"
 #include "record.h"
+#include "exception.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -25,23 +26,6 @@ static VALUE client_allocate(VALUE klass)
     obj = Data_Make_Struct(klass, aerospike, NULL, client_deallocate, ptr);
 
     return obj;
-}
-
-static int keys_i(VALUE key, VALUE value, VALUE ary)
-{
-    rb_ary_push(ary, key);
-    return ST_CONTINUE;
-}
-
-static VALUE
-rb_hash_keys(VALUE hash)
-{
-    VALUE ary;
-
-    ary = rb_ary_new_capa(RHASH_SIZE(hash));
-    rb_hash_foreach(hash, keys_i, ary);
-
-    return ary;
 }
 
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
@@ -105,12 +89,10 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
     VALUE vHashKeys;
 
     aerospike *ptr;
-    as_key key;
+    as_key* key;
     as_error err;
     as_record record;
     as_policy_write policy;
-
-    VALUE vNamespace, vSet, vKeyValue;
 
     int idx = 0, n = 0;
 
@@ -174,12 +156,9 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
         }
      }
 
-    vNamespace = rb_iv_get(vKey, "@namespace");
-    vSet = rb_iv_get(vKey, "@set");
-    vKeyValue = rb_iv_get(vKey, "@value");
-    as_key_init_str(&key, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vKeyValue ));
+    Data_Get_Struct(vKey, as_key, key);
 
-    if (aerospike_key_put(ptr, &err, &policy, &key, &record) != AEROSPIKE_OK) {
+    if (aerospike_key_put(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
         printf("error\n");
         fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
     }
@@ -194,13 +173,12 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     VALUE vParams[4];
 
     aerospike *ptr;
-    as_key key;
+    as_key* key;
     as_error err;
     as_record* record = NULL;
     as_policy_read policy;
     as_bin bin;
 
-    VALUE vNamespace, vSet, vKeyValue;
     int n = 0;
 
     if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
@@ -233,16 +211,12 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
-    vNamespace = rb_iv_get(vKey, "@namespace");
-    vSet = rb_iv_get(vKey, "@set");
-    vKeyValue = rb_iv_get(vKey, "@value");
-    as_key_init_str(&key, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vKeyValue ));
+    Data_Get_Struct(vKey, as_key, key);
 
-    if (aerospike_key_get(ptr, &err, &policy, &key, &record) != AEROSPIKE_OK) {
+    if (aerospike_key_get(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
         printf("error\n");
         fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
     }
-    rb_iv_set(vKey, "@digest", rb_str_new( record->key.digest.value, AS_DIGEST_VALUE_SIZE));
 
     vParams[0] = vKey;
     vParams[1] = rb_hash_new();
@@ -276,11 +250,9 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
 
     aerospike *ptr;
     as_operations ops;
-    as_key key;
+    as_key* key;
     as_error err;
     as_policy_operate policy;
-
-    VALUE vNamespace, vSet, vKeyValue;
 
     if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
@@ -361,12 +333,9 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
         }
     }
 
-    vNamespace = rb_iv_get(vKey, "@namespace");
-    vSet = rb_iv_get(vKey, "@set");
-    vKeyValue = rb_iv_get(vKey, "@value");
-    as_key_init_str(&key, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vKeyValue ));
+   Data_Get_Struct(vKey, as_key, key);
 
-    if (aerospike_key_operate(ptr, &err, &policy, &key, &ops, NULL) != AEROSPIKE_OK) {
+    if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
         printf("error\n");
         fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
     }
@@ -375,11 +344,6 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
 
     return Qtrue;
 }
-
-// GET
-// PUT
-
-// Record
 
 void define_client()
 {

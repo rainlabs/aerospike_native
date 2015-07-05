@@ -3,7 +3,7 @@
 
 #include "aerospike_native.h"
 
-extern VALUE RecordClass;
+RUBY_EXTERN VALUE RecordClass;
 void define_record();
 
 #endif // RECORD_H
