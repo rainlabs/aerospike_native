@@ -7,12 +7,12 @@ RUBY_EXTERN VALUE OperationClass;
 void define_operation();
 
 enum OperationType {
-    READ,
-    WRITE,
-    INCREMENT,
-    APPEND,
-    PREPEND,
-    TOUCH
+    OPERATION_READ,
+    OPERATION_WRITE,
+    OPERATION_INCREMENT,
+    OPERATION_APPEND,
+    OPERATION_PREPEND,
+    OPERATION_TOUCH
 };
 
 #endif // OPERATION_H

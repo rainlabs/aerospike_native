@@ -2,7 +2,6 @@
 #include "operation.h"
 #include "key.h"
 #include "record.h"
-#include "exception.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -75,8 +74,7 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
     aerospike_init(ptr, &config);
 
     if ( aerospike_connect(ptr, &err) != AEROSPIKE_OK ) {
-        printf( "Aerospike error (%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line );
-        rb_raise(rb_eRuntimeError, "Aerospike error (%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
+        raise_aerospike_exception(err.code, err.message);
     }
     return self;
 }
@@ -151,7 +149,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
             as_record_set_int64(&record, StringValueCStr(bin_name), NUM2LONG(bin_value));
             break;
         default:
-            rb_raise(rb_eArgError, "Incorrect input type");
+            rb_raise(rb_eArgError, "Incorrect input type (expected string or fixnum)");
             break;
         }
      }
@@ -159,8 +157,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
     Data_Get_Struct(vKey, as_key, key);
 
     if (aerospike_key_put(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
-        printf("error\n");
-        fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
+        raise_aerospike_exception(err.code, err.message);
     }
 
     return Qtrue;
@@ -214,8 +211,7 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     Data_Get_Struct(vKey, as_key, key);
 
     if (aerospike_key_get(ptr, &err, &policy, key, &record) != AEROSPIKE_OK) {
-        printf("error\n");
-        fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
+        raise_aerospike_exception(err.code, err.message);
     }
 
     vParams[0] = vKey;
@@ -300,7 +296,7 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
         VALUE bin_value = rb_iv_get(operation, "@bin_value");
 
         switch( op_type ) {
-        case WRITE:
+        case OPERATION_WRITE:
             switch( TYPE(bin_value) ) {
             case T_STRING:
                 as_operations_add_write_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
@@ -311,20 +307,20 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
             }
 
             break;
-        case READ:
+        case OPERATION_READ:
             break;
-        case INCREMENT:
+        case OPERATION_INCREMENT:
             as_operations_add_incr(&ops, StringValueCStr( bin_name ), NUM2INT( bin_value ));
             break;
-        case APPEND:
+        case OPERATION_APPEND:
             Check_Type(bin_value, T_STRING);
             as_operations_add_append_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
             break;
-        case PREPEND:
+        case OPERATION_PREPEND:
             Check_Type(bin_value, T_STRING);
             as_operations_add_prepend_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
             break;
-        case TOUCH:
+        case OPERATION_TOUCH:
             as_operations_add_touch(&ops);
             break;
         default:
@@ -333,11 +329,10 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
         }
     }
 
-   Data_Get_Struct(vKey, as_key, key);
+    Data_Get_Struct(vKey, as_key, key);
 
     if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
-        printf("error\n");
-        fprintf(stderr, "err(%d) %s at [%s:%d]\n", err.code, err.message, err.file, err.line);
+        raise_aerospike_exception(err.code, err.message);
     }
 
     as_operations_destroy(&ops);

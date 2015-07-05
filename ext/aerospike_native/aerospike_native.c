@@ -1,5 +1,4 @@
 #include "aerospike_native.h"
-#include "exception.h"
 #include "client.h"
 #include "key.h"
 #include "operation.h"

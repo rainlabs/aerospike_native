@@ -17,7 +17,7 @@ VALUE operation_initialize(VALUE vSelf, VALUE vOpType, VALUE vBinName, VALUE vBi
 VALUE operation_write(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 {
     VALUE vArgs[3];
-    vArgs[0] = INT2NUM(WRITE);
+    vArgs[0] = INT2NUM(OPERATION_WRITE);
     vArgs[1] = vBinName;
     vArgs[2] = vBinValue;
     return rb_class_new_instance(3, vArgs, vSelf);
@@ -29,7 +29,7 @@ VALUE operation_append(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 
     Check_Type(vBinValue, T_STRING);
 
-    vArgs[0] = INT2NUM(APPEND);
+    vArgs[0] = INT2NUM(OPERATION_APPEND);
     vArgs[1] = vBinName;
     vArgs[2] = vBinValue;
     return rb_class_new_instance(3, vArgs, vSelf);
@@ -41,7 +41,7 @@ VALUE operation_prepend(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 
     Check_Type(vBinValue, T_STRING);
 
-    vArgs[0] = INT2NUM(PREPEND);
+    vArgs[0] = INT2NUM(OPERATION_PREPEND);
     vArgs[1] = vBinName;
     vArgs[2] = vBinValue;
     return rb_class_new_instance(3, vArgs, vSelf);
@@ -53,7 +53,7 @@ VALUE operation_increment(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 
     Check_Type(vBinValue, T_FIXNUM);
 
-    vArgs[0] = INT2NUM(INCREMENT);
+    vArgs[0] = INT2NUM(OPERATION_INCREMENT);
     vArgs[1] = vBinName;
     vArgs[2] = vBinValue;
     return rb_class_new_instance(3, vArgs, vSelf);
