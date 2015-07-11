@@ -26,6 +26,7 @@ Or install it yourself as:
 * `remove` command
 * `select` command
 * `exixts?` command
+* `where` command (query support)
 * :disappointed: Raw (bytes) type is not supported
 * Supported timeout for policies
 * Supported digest keys
@@ -46,6 +47,15 @@ client.exists?(key)
 record = client.get(key)
 record = client.select(key, ['bin2', 'bin1'])
 client.remove(key)
+
+10.times do |i|
+  client.put(AerospikeNative::Key.new('test', 'test', "key#{i}"), {'number' => i, 'name' => 'key'})
+end
+client.create_index('test', 'test', 'number', 'number_idx');
+
+records = []
+client.where('test', 'test', [AerospikeNative::Condition.range("number", 1, 7)]) { |record| records << record }
+records
 ```
 
 ## Contributing
