@@ -2,10 +2,12 @@
 #include "operation.h"
 #include "key.h"
 #include "record.h"
+#include "condition.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
 #include <aerospike/aerospike_index.h>
+#include <aerospike/aerospike_query.h>
 
 VALUE ClientClass;
 
@@ -514,8 +516,13 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
         SET_POLICY(policy, vArgs[2]);
         vType = rb_hash_aref(vArgs[2], rb_str_new2("type"));
         if (TYPE(vType) == T_FIXNUM) {
-            if (FIX2INT(vType) == 1) {
+            switch(FIX2INT(vType)) {
+            case INDEX_NUMERIC:
+                is_integer = true;
+            case INDEX_STRING:
                 is_integer = false;
+            default:
+                rb_raise(rb_eArgError, "Incorrect index type");
             }
         }
     }
@@ -567,6 +574,150 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+bool query_callback(const as_val *value, void *udata) {
+    VALUE vParams[4], vKeyParams[4];
+    VALUE vRecord;
+
+    as_record *record;
+    as_bin bin;
+    int n;
+
+    if (value == NULL) {
+        // query is complete
+        return true;
+    }
+
+    record = as_record_fromval(value);
+
+    if (record != NULL) {
+        vKeyParams[0] = rb_str_new2(record->key.ns);
+        vKeyParams[1] = rb_str_new2(record->key.set);
+
+        if (record->key.valuep == NULL) {
+            vKeyParams[2] = Qnil;
+        } else {
+            vKeyParams[2] = rb_str_new2(record->key.value.string.value);
+        }
+        vKeyParams[3] = rb_str_new(record->key.digest.value, AS_DIGEST_VALUE_SIZE);
+
+        vParams[0] = rb_class_new_instance(4, vKeyParams, KeyClass);
+        vParams[1] = rb_hash_new();
+        vParams[2] = UINT2NUM(record->gen);
+        vParams[3] = UINT2NUM(record->ttl);
+
+        for(n = 0; n < record->bins.size; n++) {
+            bin = record->bins.entries[n];
+            switch( as_val_type(bin.valuep) ) {
+            case AS_INTEGER:
+                rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
+                break;
+            case AS_STRING:
+                rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
+                break;
+            case AS_UNDEF:
+            default:
+                break;
+            }
+        }
+
+        as_record_destroy(record);
+        vRecord = rb_class_new_instance(4, vParams, RecordClass);
+
+        if ( rb_block_given_p() ) {
+            rb_yield(vRecord);
+        } else {
+            // TODO: write default aggregate block
+        }
+    }
+
+    return true;
+}
+
+VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
+{
+    VALUE vNamespace;
+    VALUE vSet;
+    VALUE vConditions;
+
+    aerospike *ptr;
+    as_error err;
+    as_policy_query policy;
+    as_query query;
+
+    int idx = 0, n = 0;
+
+    if (argc > 4 || argc < 3) {  // there should only be 3 or 4 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 3..4)", argc);
+    }
+
+    // TODO: write default aggregate block
+    if ( !rb_block_given_p() ) {
+        rb_raise(rb_eArgError, "no block given");
+    }
+
+    vNamespace = vArgs[0];
+    Check_Type(vNamespace, T_STRING);
+
+    vSet = vArgs[1];
+    Check_Type(vSet, T_STRING);
+
+    vConditions = vArgs[2];
+    Check_Type(vConditions, T_ARRAY);
+
+    as_policy_query_init(&policy);
+    if (argc == 4) {
+        SET_POLICY(policy, vArgs[3]);
+    }
+
+    idx = RARRAY_LEN(vConditions);
+    if (idx == 0) {
+        return Qnil;
+    }
+
+    Data_Get_Struct(vSelf, aerospike, ptr);
+
+    as_query_init(&query, StringValueCStr(vNamespace), StringValueCStr(vSet));
+    as_query_where_inita(&query, idx);
+    for(n = 0; n < idx; n++) {
+        VALUE vMin, vMax, vBinName;
+        VALUE vCondition = rb_ary_entry(vConditions, n);
+        check_aerospike_condition(vCondition);
+        vMin = rb_iv_get(vCondition, "@min");
+        vMax = rb_iv_get(vCondition, "@max");
+        vBinName = rb_iv_get(vCondition, "@bin_name");
+
+        switch(TYPE(vMin)) {
+        case T_FIXNUM:
+            switch(TYPE(vMax)) {
+            case T_NIL:
+                as_query_where(&query, StringValueCStr(vBinName), as_integer_equals(FIX2LONG(vMin)));
+                break;
+            case T_FIXNUM:
+                as_query_where(&query, StringValueCStr(vBinName), as_integer_range(FIX2LONG(vMin), FIX2LONG(vMax)));
+                break;
+            default:
+                rb_raise(rb_eArgError, "Incorrect condition");
+            }
+
+            break;
+        case T_STRING:
+            Check_Type(vMax, T_NIL);
+            as_query_where(&query, StringValueCStr(vBinName), as_string_equals(StringValueCStr(vMin)));
+            break;
+        default:
+            rb_raise(rb_eArgError, "Incorrect condition");
+        }
+    }
+
+    if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, NULL) != AEROSPIKE_OK) {
+        as_query_destroy(&query);
+        raise_aerospike_exception(err.code, err.message);
+    }
+    as_query_destroy(&query);
+
+    return Qnil;
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -580,7 +731,5 @@ void define_client()
     rb_define_method(ClientClass, "select", client_select, -1);
     rb_define_method(ClientClass, "create_index", client_create_index, -1);
     rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
-
-    rb_define_const(ClientClass, "INTEGER", INT2FIX(0));
-    rb_define_const(ClientClass, "STRING", INT2FIX(1));
+    rb_define_method(ClientClass, "where", client_exec_query, -1);
 }
