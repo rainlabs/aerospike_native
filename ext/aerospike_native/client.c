@@ -493,6 +493,7 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
     aerospike *ptr;
     as_error err;
     as_policy_info policy;
+    as_index_task task;
     bool is_integer = true;
 
     if (argc > 5 || argc < 4) {  // there should only be 4 or 5 arguments
@@ -513,14 +514,16 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 
     if (argc == 5) {
         VALUE vType = Qnil;
-        SET_POLICY(policy, vArgs[2]);
-        vType = rb_hash_aref(vArgs[2], rb_str_new2("type"));
+        SET_POLICY(policy, vArgs[4]);
+        vType = rb_hash_aref(vArgs[4], rb_str_new2("type"));
         if (TYPE(vType) == T_FIXNUM) {
             switch(FIX2INT(vType)) {
             case INDEX_NUMERIC:
                 is_integer = true;
+                break;
             case INDEX_STRING:
                 is_integer = false;
+                break;
             default:
                 rb_raise(rb_eArgError, "Incorrect index type");
             }
@@ -538,9 +541,14 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
             raise_aerospike_exception(err.code, err.message);
         }
     }
-    // TODO aerospike_index_create_wait
 
-    return Qtrue;
+    task.as = ptr;
+    strcpy(task.ns, StringValueCStr(vNamespace));
+    strcpy(task.name, StringValueCStr(vBinName));
+    task.done = false;
+    aerospike_index_create_wait(&err, &task, 1000);
+
+    return (task.done ? Qtrue : Qfalse);
 }
 
 VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
