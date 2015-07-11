@@ -19,18 +19,50 @@ static VALUE key_allocate(VALUE klass)
     return obj;
 }
 
-VALUE key_initialize(VALUE vSelf, VALUE vNamespace, VALUE vSet, VALUE vValue)
+VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
 {
+    VALUE vNamespace, vSet, vValue, vDigest = Qnil;
     as_key *ptr;
-    as_digest* digest;
+    as_digest* digest = NULL;
 
+    if (argc > 4 || argc < 3) {  // there should only be 3 or 4 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 3..4)", argc);
+    }
+
+    vNamespace = vArgs[0];
     Check_Type(vNamespace, T_STRING);
+
+    vSet = vArgs[1];
     Check_Type(vSet, T_STRING);
-    Check_Type(vValue, T_STRING);
+
+    vValue = vArgs[2];
+
+    if (argc == 4) {
+        vDigest = vArgs[3];
+    }
 
     Data_Get_Struct(vSelf, as_key, ptr);
-    as_key_init_str(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vValue ));
-    digest = as_key_digest(ptr);
+
+    if(TYPE(vDigest) == T_NIL) {
+        switch(TYPE(vValue)) {
+        case T_FIXNUM:
+            as_key_init_int64(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), FIX2LONG( vValue ));
+            break;
+        case T_STRING:
+            as_key_init_str(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vValue ));
+            break;
+        default:
+            rb_raise(rb_eArgError, "Expected FIXNUM or STRING as value");
+        }
+    } else {
+        Check_Type(vValue, T_NIL);
+        Check_Type(vDigest, T_STRING);
+        as_key_init_digest(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValuePtr( vDigest ));
+    }
+
+    if (digest == NULL) {
+        digest = as_key_digest(ptr);
+    }
 
     rb_iv_set(vSelf, "@namespace", vNamespace);
     rb_iv_set(vSelf, "@set", vSet);
@@ -53,7 +85,7 @@ void define_native_key()
 {
     KeyClass = rb_define_class_under(AerospikeNativeClass, "Key", rb_cObject);
     rb_define_alloc_func(KeyClass, key_allocate);
-    rb_define_method(KeyClass, "initialize", key_initialize, 3);
+    rb_define_method(KeyClass, "initialize", key_initialize, -1);
     rb_define_attr(KeyClass, "namespace", 1, 0);
     rb_define_attr(KeyClass, "set", 1, 0);
     rb_define_attr(KeyClass, "value", 1, 0);
