@@ -84,7 +84,6 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vBins;
-    VALUE vSettings;
     VALUE vHashKeys;
 
     aerospike *ptr;
@@ -108,23 +107,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
     as_policy_write_init(&policy);
 
     if (argc == 3) {
-        vSettings = vArgs[2];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[2]);
     }
 
     idx = RHASH_SIZE(vBins);
@@ -169,7 +152,6 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
-    VALUE vSettings;
     VALUE vParams[4];
 
     aerospike *ptr;
@@ -191,23 +173,7 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     as_policy_read_init(&policy);
 
     if (argc == 2) {
-        vSettings = vArgs[1];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[1]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -242,11 +208,10 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     return rb_class_new_instance(4, vParams, RecordClass);
 }
 
-VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
+VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vOperations;
-    VALUE vSettings = Qnil;
     VALUE vParams[4];
     long idx = 0, n = 0;
     bool isset_read = false;
@@ -263,31 +228,15 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
     }
 
-    vKey = argv[0];
+    vKey = vArgs[0];
     check_aerospike_key(vKey);
 
-    vOperations = argv[1];
+    vOperations = vArgs[1];
     Check_Type(vOperations, T_ARRAY);
     as_policy_operate_init(&policy);
 
     if (argc == 3) {
-        vSettings = argv[2];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[2]);
     }
 
     idx = RARRAY_LEN(vOperations);
@@ -332,6 +281,7 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
             as_operations_add_prepend_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
             break;
         case OPERATION_TOUCH:
+            isset_read = true;
             as_operations_add_touch(&ops);
             break;
         default:
@@ -384,10 +334,9 @@ VALUE client_operate(int argc, VALUE* argv, VALUE vSelf)
     }
 }
 
-VALUE client_remove(int argc, VALUE* argv, VALUE vSelf)
+VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
-    VALUE vSettings = Qnil;
 
     aerospike *ptr;
     as_key* key;
@@ -398,27 +347,11 @@ VALUE client_remove(int argc, VALUE* argv, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
     }
 
-    vKey = argv[0];
+    vKey = vArgs[0];
     check_aerospike_key(vKey);
 
     if (argc == 2) {
-        vSettings = argv[1];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -431,10 +364,9 @@ VALUE client_remove(int argc, VALUE* argv, VALUE vSelf)
     return Qtrue;
 }
 
-VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
+VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
-    VALUE vSettings = Qnil;
 
     aerospike *ptr;
     as_key* key;
@@ -447,27 +379,11 @@ VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
     }
 
-    vKey = argv[0];
+    vKey = vArgs[0];
     check_aerospike_key(vKey);
 
     if (argc == 2) {
-        vSettings = argv[1];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[1]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -487,11 +403,10 @@ VALUE client_exists(int argc, VALUE* argv, VALUE vSelf)
     return Qtrue;
 }
 
-VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
+VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vArray;
-    VALUE vSettings = Qnil;
     VALUE vParams[4];
 
     aerospike *ptr;
@@ -506,9 +421,9 @@ VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
     }
 
-    vKey = argv[0];
+    vKey = vArgs[0];
     check_aerospike_key(vKey);
-    vArray = argv[1];
+    vArray = vArgs[1];
 
     Check_Type(vArray, T_ARRAY);
     idx = RARRAY_LEN(vArray);
@@ -517,23 +432,7 @@ VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
     }
 
     if (argc == 3) {
-        vSettings = argv[2];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -585,9 +484,8 @@ VALUE client_select(int argc, VALUE* argv, VALUE vSelf)
     return rb_class_new_instance(4, vParams, RecordClass);
 }
 
-VALUE client_create_index(int argc, VALUE* argv, VALUE vSelf)
+VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
-    VALUE vSettings = Qnil;
     VALUE vNamespace, vSet, vBinName, vIndexName;
 
     aerospike *ptr;
@@ -599,41 +497,26 @@ VALUE client_create_index(int argc, VALUE* argv, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 4..5)", argc);
     }
 
-    vNamespace = argv[0];
+    vNamespace = vArgs[0];
     Check_Type(vNamespace, T_STRING);
 
-    vSet = argv[1];
+    vSet = vArgs[1];
     Check_Type(vSet, T_STRING);
 
-    vBinName = argv[2];
+    vBinName = vArgs[2];
     Check_Type(vBinName, T_STRING);
 
-    vIndexName = argv[3];
+    vIndexName = vArgs[3];
     Check_Type(vIndexName, T_STRING);
 
     if (argc == 5) {
-        vSettings = argv[4];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            VALUE vType = rb_hash_aref(vSettings, rb_str_new2("type"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
+        VALUE vType = Qnil;
+        SET_POLICY(policy, vArgs[2]);
+        vType = rb_hash_aref(vArgs[2], rb_str_new2("type"));
+        if (TYPE(vType) == T_FIXNUM) {
+            if (FIX2INT(vType) == 1) {
+                is_integer = false;
             }
-            if (TYPE(vType) == T_FIXNUM) {
-                if (FIX2INT(vType) == 1) {
-                    is_integer = false;
-                }
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
         }
     }
 
@@ -648,13 +531,13 @@ VALUE client_create_index(int argc, VALUE* argv, VALUE vSelf)
             raise_aerospike_exception(err.code, err.message);
         }
     }
+    // TODO aerospike_index_create_wait
 
     return Qtrue;
 }
 
-VALUE client_drop_index(int argc, VALUE* argv, VALUE vSelf)
+VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
-    VALUE vSettings = Qnil;
     VALUE vNamespace, vIndexName;
 
     aerospike *ptr;
@@ -665,30 +548,14 @@ VALUE client_drop_index(int argc, VALUE* argv, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
     }
 
-    vNamespace = argv[0];
+    vNamespace = vArgs[0];
     Check_Type(vNamespace, T_STRING);
 
-    vIndexName = argv[1];
+    vIndexName = vArgs[1];
     Check_Type(vIndexName, T_STRING);
 
     if (argc == 3) {
-        vSettings = argv[2];
-
-        switch (TYPE(vSettings)) {
-        case T_NIL:
-            break;
-        case T_HASH: {
-            VALUE vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));
-            if (TYPE(vTimeout) == T_FIXNUM) {
-                policy.timeout = NUM2UINT( vTimeout );
-            }
-            break;
-        }
-        default:
-            /* raise exception */
-            Check_Type(vSettings, T_HASH);
-            break;
-        }
+        SET_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
