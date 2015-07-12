@@ -30,6 +30,13 @@ static VALUE client_allocate(VALUE klass)
     return obj;
 }
 
+/*
+ * call-seq:
+ *   new() -> AerospikeNative::Client
+ *   new(hosts) -> AerospikeNative::Client
+ *
+ * initialize new client, use {'host' => ..., 'port' => ...} for each hosts element
+ */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
     VALUE ary = Qnil;
@@ -82,6 +89,13 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
     return self;
 }
 
+/*
+ * call-seq:
+ *   put(key, bins) -> true or false
+ *   put(key, bins, policy_settings) -> true or false
+ *
+ * put bins to specified key, bins are hash
+ */
 VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -108,8 +122,8 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 
     as_policy_write_init(&policy);
 
-    if (argc == 3) {
-        SET_POLICY(policy, vArgs[2]);
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        SET_WRITE_POLICY(policy, vArgs[2]);
     }
 
     idx = RHASH_SIZE(vBins);
@@ -135,7 +149,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
             as_record_set_int64(&record, StringValueCStr(bin_name), NUM2LONG(bin_value));
             break;
         default:
-            rb_raise(rb_eArgError, "Incorrect input type (expected string or fixnum)");
+            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Fixnum or String)");
             break;
         }
      }
@@ -151,19 +165,22 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   get(key) -> AerospikeNative::Record
+ *   get(key, policy_settings) -> AerospikeNative::Record
+ *
+ * get record
+ */
 VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
-    VALUE vParams[4];
 
     aerospike *ptr;
     as_key* key;
     as_error err;
     as_record* record = NULL;
     as_policy_read policy;
-    as_bin bin;
-
-    int n = 0;
 
     if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
@@ -174,8 +191,8 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 
     as_policy_read_init(&policy);
 
-    if (argc == 2) {
-        SET_POLICY(policy, vArgs[1]);
+    if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
+        SET_READ_POLICY(policy, vArgs[1]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -186,35 +203,20 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
         raise_aerospike_exception(err.code, err.message);
     }
 
-    vParams[0] = vKey;
-    vParams[1] = rb_hash_new();
-    vParams[2] = UINT2NUM(record->gen);
-    vParams[3] = UINT2NUM(record->ttl);
-
-    for(n = 0; n < record->bins.size; n++) {
-        bin = record->bins.entries[n];
-        switch( as_val_type(bin.valuep) ) {
-        case AS_INTEGER:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-            break;
-        case AS_STRING:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-            break;
-        case AS_UNDEF:
-        default:
-            break;
-        }
-    }
-
-    as_record_destroy(record);
-    return rb_class_new_instance(4, vParams, RecordClass);
+    return rb_record_from_c(record, key);
 }
 
+/*
+ * call-seq:
+ *   operate(key, operations) -> true, false or AerospikeNative::Record
+ *   operate(key, operations, policy_settings) -> true, false or AerospikeNative::Record
+ *
+ * perform multiple operations in one transaction, operations are array of AerospikeNative::Operation
+ */
 VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vOperations;
-    VALUE vParams[4];
     long idx = 0, n = 0;
     bool isset_read = false;
 
@@ -224,7 +226,6 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     as_error err;
     as_policy_operate policy;
     as_record* record = NULL;
-    as_bin bin;
 
     if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
@@ -237,8 +238,8 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     Check_Type(vOperations, T_ARRAY);
     as_policy_operate_init(&policy);
 
-    if (argc == 3) {
-        SET_POLICY(policy, vArgs[2]);
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        SET_OPERATE_POLICY(policy, vArgs[2]);
     }
 
     idx = RARRAY_LEN(vOperations);
@@ -303,28 +304,7 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
 
         as_operations_destroy(&ops);
 
-        vParams[0] = vKey;
-        vParams[1] = rb_hash_new();
-        vParams[2] = UINT2NUM(record->gen);
-        vParams[3] = UINT2NUM(record->ttl);
-
-        for(n = 0; n < record->bins.size; n++) {
-            bin = record->bins.entries[n];
-            switch( as_val_type(bin.valuep) ) {
-            case AS_INTEGER:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-                break;
-            case AS_STRING:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-                break;
-            case AS_UNDEF:
-            default:
-                break;
-            }
-        }
-
-        as_record_destroy(record);
-        return rb_class_new_instance(4, vParams, RecordClass);
+        return rb_record_from_c(record, key);
     } else {
         if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
             as_operations_destroy(&ops);
@@ -336,6 +316,13 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     }
 }
 
+/*
+ * call-seq:
+ *   remove(key) -> true or false
+ *   remove(key, policy_settings) -> true or false
+ *
+ * remove record
+ */
 VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -352,8 +339,8 @@ VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
     vKey = vArgs[0];
     check_aerospike_key(vKey);
 
-    if (argc == 2) {
-        SET_POLICY(policy, vArgs[2]);
+    if (argc == 2 && TYPE(vArgs[2]) != T_NIL) {
+        SET_REMOVE_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -366,6 +353,13 @@ VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   exists?(key) -> true or false
+ *   exists?(key, policy_settings) -> true or false
+ *
+ * check existing record by key
+ */
 VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -384,8 +378,8 @@ VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
     vKey = vArgs[0];
     check_aerospike_key(vKey);
 
-    if (argc == 2) {
-        SET_POLICY(policy, vArgs[1]);
+    if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
+        SET_READ_POLICY(policy, vArgs[1]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -405,18 +399,23 @@ VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   select(key, bins) -> AerospikeNative::Record
+ *   select(key, bins, policy_settings) -> AerospikeNative::Record
+ *
+ * select specified bins by key
+ */
 VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vArray;
-    VALUE vParams[4];
 
     aerospike *ptr;
     as_key* key;
     as_error err;
     as_policy_read policy;
     as_record* record = NULL;
-    as_bin bin;
     long n = 0, idx = 0;
 
     if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
@@ -433,8 +432,8 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
         return Qfalse;
     }
 
-    if (argc == 3) {
-        SET_POLICY(policy, vArgs[2]);
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        SET_READ_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -462,30 +461,16 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
         free(bins[n]);
     }
 
-    vParams[0] = vKey;
-    vParams[1] = rb_hash_new();
-    vParams[2] = UINT2NUM(record->gen);
-    vParams[3] = UINT2NUM(record->ttl);
-
-    for(n = 0; n < record->bins.size; n++) {
-        bin = record->bins.entries[n];
-        switch( as_val_type(bin.valuep) ) {
-        case AS_INTEGER:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-            break;
-        case AS_STRING:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-            break;
-        case AS_UNDEF:
-        default:
-            break;
-        }
-    }
-
-    as_record_destroy(record);
-    return rb_class_new_instance(4, vParams, RecordClass);
+    return rb_record_from_c(record, key);
 }
 
+/*
+ * call-seq:
+ *   create_index(namespace, set, bin_name, index_name) -> true or false
+ *   create_index(namespace, set, bin_name, index_name, policy_settings) -> true or false
+ *
+ * Create new index, use {'type' => AerospikeNative::INDEX_NUMERIC or AerospikeNative::INDEX_STRING} as policy_settings to define index type
+ */
 VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace, vSet, vBinName, vIndexName;
@@ -512,9 +497,9 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
     vIndexName = vArgs[3];
     Check_Type(vIndexName, T_STRING);
 
-    if (argc == 5) {
+    if (argc == 5 && TYPE(vArgs[4]) != T_NIL) {
         VALUE vType = Qnil;
-        SET_POLICY(policy, vArgs[4]);
+        SET_INFO_POLICY(policy, vArgs[4]);
         vType = rb_hash_aref(vArgs[4], rb_str_new2("type"));
         if (TYPE(vType) == T_FIXNUM) {
             switch(FIX2INT(vType)) {
@@ -544,13 +529,22 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 
     task.as = ptr;
     strcpy(task.ns, StringValueCStr(vNamespace));
-    strcpy(task.name, StringValueCStr(vBinName));
+    strcpy(task.name, StringValueCStr(vIndexName));
     task.done = false;
-    aerospike_index_create_wait(&err, &task, 1000);
+    if (aerospike_index_create_wait(&err, &task, 1000) != AEROSPIKE_OK) {
+        raise_aerospike_exception(err.code, err.message);
+    }
 
     return (task.done ? Qtrue : Qfalse);
 }
 
+/*
+ * call-seq:
+ *   drop_index(namespace, index_name) -> true or false
+ *   drop_index(namespace, index_name, policy_settings) -> true or false
+ *
+ * Remove specified index from node
+ */
 VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace, vIndexName;
@@ -569,8 +563,8 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
     vIndexName = vArgs[1];
     Check_Type(vIndexName, T_STRING);
 
-    if (argc == 3) {
-        SET_POLICY(policy, vArgs[2]);
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        SET_INFO_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -583,12 +577,8 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
 }
 
 bool query_callback(const as_val *value, void *udata) {
-    VALUE vParams[4], vKeyParams[4];
     VALUE vRecord;
-
     as_record *record;
-    as_bin bin;
-    int n;
 
     if (value == NULL) {
         // query is complete
@@ -598,54 +588,36 @@ bool query_callback(const as_val *value, void *udata) {
     record = as_record_fromval(value);
 
     if (record != NULL) {
-        vKeyParams[0] = rb_str_new2(record->key.ns);
-        vKeyParams[1] = rb_str_new2(record->key.set);
-
-        if (record->key.valuep == NULL) {
-            vKeyParams[2] = Qnil;
-        } else {
-            vKeyParams[2] = rb_str_new2(record->key.value.string.value);
-        }
-        vKeyParams[3] = rb_str_new(record->key.digest.value, AS_DIGEST_VALUE_SIZE);
-
-        vParams[0] = rb_class_new_instance(4, vKeyParams, KeyClass);
-        vParams[1] = rb_hash_new();
-        vParams[2] = UINT2NUM(record->gen);
-        vParams[3] = UINT2NUM(record->ttl);
-
-        for(n = 0; n < record->bins.size; n++) {
-            bin = record->bins.entries[n];
-            switch( as_val_type(bin.valuep) ) {
-            case AS_INTEGER:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-                break;
-            case AS_STRING:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-                break;
-            case AS_UNDEF:
-            default:
-                break;
-            }
-        }
-
-        as_record_destroy(record);
-        vRecord = rb_class_new_instance(4, vParams, RecordClass);
+        vRecord = rb_record_from_c(record, NULL);
 
         if ( rb_block_given_p() ) {
             rb_yield(vRecord);
         } else {
-            // TODO: write default aggregate block
+            VALUE *vArray = (VALUE*) udata;
+            rb_ary_push(*vArray, vRecord);
         }
     }
 
     return true;
 }
 
+/*
+ * call-seq:
+ *   where(namespace, set) -> array
+ *   where(namespace, set, conditions) -> array
+ *   where(namespace, set, conditions, policy_settings) -> array
+ *   where(namespace, set) { |record| ... } -> nil
+ *   where(namespace, set, conditions) { |record| ... } -> nil
+ *   where(namespace, set, conditions, policy_settings) { |record| ... } -> nil
+ *
+ * Perform a query with where clause
+ */
 VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace;
     VALUE vSet;
     VALUE vConditions;
+    VALUE vArray;
 
     aerospike *ptr;
     as_error err;
@@ -654,13 +626,8 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
 
     int idx = 0, n = 0;
 
-    if (argc > 4 || argc < 3) {  // there should only be 3 or 4 arguments
-        rb_raise(rb_eArgError, "wrong number of arguments (%d for 3..4)", argc);
-    }
-
-    // TODO: write default aggregate block
-    if ( !rb_block_given_p() ) {
-        rb_raise(rb_eArgError, "no block given");
+    if (argc > 4 || argc < 2) {  // there should only be 2, 3 or 4 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..4)", argc);
     }
 
     vNamespace = vArgs[0];
@@ -670,16 +637,19 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
     Check_Type(vSet, T_STRING);
 
     vConditions = vArgs[2];
-    Check_Type(vConditions, T_ARRAY);
-
-    as_policy_query_init(&policy);
-    if (argc == 4) {
-        SET_POLICY(policy, vArgs[3]);
+    switch(TYPE(vConditions)) {
+    case T_NIL:
+        break;
+    case T_ARRAY:
+        idx = RARRAY_LEN(vConditions);
+        break;
+    default:
+        rb_raise(rb_eTypeError, "wrong argument type for condition (expected Array or Nil)");
     }
 
-    idx = RARRAY_LEN(vConditions);
-    if (idx == 0) {
-        return Qnil;
+    as_policy_query_init(&policy);
+    if (argc == 4 && TYPE(vArgs[3]) != T_NIL) {
+        SET_POLICY(policy, vArgs[3]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -717,13 +687,18 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
         }
     }
 
-    if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, NULL) != AEROSPIKE_OK) {
+    vArray = rb_ary_new();
+    if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, &vArray) != AEROSPIKE_OK) {
         as_query_destroy(&query);
         raise_aerospike_exception(err.code, err.message);
     }
     as_query_destroy(&query);
 
-    return Qnil;
+    if ( rb_block_given_p() ) {
+        return Qnil;
+    }
+
+    return vArray;
 }
 
 void define_client()

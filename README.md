@@ -28,9 +28,9 @@ Or install it yourself as:
 * `exixts?` command
 * `where` command (query support)
 * :disappointed: Raw (bytes) type is not supported
-* Supported timeout for policies
+* Supported policies with all parameters for described commands
 * Supported digest keys
-* Supported exceptions (`AerospikeNative::Exception`) with several error codes constants like `AerospikeNative::Exception::ERR_CLIENT`
+* Supported exceptions (`AerospikeNative::Exception`) with several error codes constants `AerospikeNative::Exception.constants`
 * Index management (`create_index` and `drop_index`)
 
 ## Usage

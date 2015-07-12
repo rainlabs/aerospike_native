@@ -4,6 +4,7 @@
 #include "operation.h"
 #include "record.h"
 #include "condition.h"
+#include "policy.h"
 
 VALUE AerospikeNativeClass;
 
@@ -16,6 +17,7 @@ void Init_aerospike_native()
     define_record();
     define_operation();
     define_condition();
+    define_policy();
 
     rb_define_const(AerospikeNativeClass, "INDEX_NUMERIC", INT2FIX(INDEX_NUMERIC));
     rb_define_const(AerospikeNativeClass, "INDEX_STRING", INT2FIX(INDEX_STRING));

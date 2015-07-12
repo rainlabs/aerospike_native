@@ -2,6 +2,12 @@
 
 VALUE OperationClass;
 
+/*
+ * call-seq:
+ *   new(operation_type, bin_name, bin_value) -> AerospikeNative::Operation
+ *
+ * initialize new operation for client.operate command
+ */
 VALUE operation_initialize(VALUE vSelf, VALUE vOpType, VALUE vBinName, VALUE vBinValue)
 {
     int op_type = 0;
@@ -22,6 +28,12 @@ VALUE operation_initialize(VALUE vSelf, VALUE vOpType, VALUE vBinName, VALUE vBi
     return vSelf;
 }
 
+/*
+ * call-seq:
+ *   write(bin_name, bin_value) -> AerospikeNative::Operation
+ *
+ * initialize new write operation
+ */
 VALUE operation_write(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 {
     VALUE vArgs[3];
@@ -31,6 +43,12 @@ VALUE operation_write(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
     return rb_class_new_instance(3, vArgs, vSelf);
 }
 
+/*
+ * call-seq:
+ *   append(bin_name, bin_value) -> AerospikeNative::Operation
+ *
+ * initialize new append operation
+ */
 VALUE operation_append(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 {
     VALUE vArgs[3];
@@ -43,6 +61,12 @@ VALUE operation_append(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
     return rb_class_new_instance(3, vArgs, vSelf);
 }
 
+/*
+ * call-seq:
+ *   prepend(bin_name, bin_value) -> AerospikeNative::Operation
+ *
+ * initialize new prepend operation
+ */
 VALUE operation_prepend(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 {
     VALUE vArgs[3];
@@ -55,6 +79,12 @@ VALUE operation_prepend(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
     return rb_class_new_instance(3, vArgs, vSelf);
 }
 
+/*
+ * call-seq:
+ *   increment(bin_name, bin_value) -> AerospikeNative::Operation
+ *
+ * initialize new increment operation
+ */
 VALUE operation_increment(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
 {
     VALUE vArgs[3];
@@ -67,6 +97,12 @@ VALUE operation_increment(VALUE vSelf, VALUE vBinName, VALUE vBinValue)
     return rb_class_new_instance(3, vArgs, vSelf);
 }
 
+/*
+ * call-seq:
+ *   touch() -> AerospikeNative::Operation
+ *
+ * initialize new touch operation
+ */
 VALUE operation_touch(VALUE vSelf)
 {
     VALUE vArgs[3];
@@ -77,6 +113,12 @@ VALUE operation_touch(VALUE vSelf)
     return rb_class_new_instance(3, vArgs, vSelf);
 }
 
+/*
+ * call-seq:
+ *   read(bin_name) -> AerospikeNative::Operation
+ *
+ * initialize new read operation
+ */
 VALUE operation_read(VALUE vSelf, VALUE vBinName)
 {
     VALUE vArgs[3];

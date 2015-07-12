@@ -19,6 +19,13 @@ static VALUE key_allocate(VALUE klass)
     return obj;
 }
 
+/*
+ * call-seq:
+ *   new(namespace, set, value) -> AerospikeNative::Key
+ *   new(namespace, set, value, digest) -> AerospikeNative::Key
+ *
+ * initialize new key
+ */
 VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace, vSet, vValue, vDigest = Qnil;
@@ -43,7 +50,7 @@ VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
 
     Data_Get_Struct(vSelf, as_key, ptr);
 
-    if(TYPE(vDigest) == T_NIL) {
+    if(TYPE(vValue) == T_STRING) {
         switch(TYPE(vValue)) {
         case T_FIXNUM:
             as_key_init_int64(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), FIX2LONG( vValue ));
