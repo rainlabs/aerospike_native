@@ -108,8 +108,8 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 
     as_policy_write_init(&policy);
 
-    if (argc == 3) {
-        SET_POLICY(policy, vArgs[2]);
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        SET_WRITE_POLICY(policy, vArgs[2]);
     }
 
     idx = RHASH_SIZE(vBins);
@@ -174,8 +174,8 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 
     as_policy_read_init(&policy);
 
-    if (argc == 2) {
-        SET_POLICY(policy, vArgs[1]);
+    if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
+        SET_READ_POLICY(policy, vArgs[1]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -237,7 +237,7 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     Check_Type(vOperations, T_ARRAY);
     as_policy_operate_init(&policy);
 
-    if (argc == 3) {
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
         SET_POLICY(policy, vArgs[2]);
     }
 
@@ -352,7 +352,7 @@ VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
     vKey = vArgs[0];
     check_aerospike_key(vKey);
 
-    if (argc == 2) {
+    if (argc == 2 && TYPE(vArgs[2]) != T_NIL) {
         SET_POLICY(policy, vArgs[2]);
     }
 
@@ -384,7 +384,7 @@ VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
     vKey = vArgs[0];
     check_aerospike_key(vKey);
 
-    if (argc == 2) {
+    if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
         SET_POLICY(policy, vArgs[1]);
     }
 
@@ -433,7 +433,7 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
         return Qfalse;
     }
 
-    if (argc == 3) {
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
         SET_POLICY(policy, vArgs[2]);
     }
 
@@ -512,7 +512,7 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
     vIndexName = vArgs[3];
     Check_Type(vIndexName, T_STRING);
 
-    if (argc == 5) {
+    if (argc == 5 && TYPE(vArgs[4]) != T_NIL) {
         VALUE vType = Qnil;
         SET_POLICY(policy, vArgs[4]);
         vType = rb_hash_aref(vArgs[4], rb_str_new2("type"));
@@ -569,7 +569,7 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
     vIndexName = vArgs[1];
     Check_Type(vIndexName, T_STRING);
 
-    if (argc == 3) {
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
         SET_POLICY(policy, vArgs[2]);
     }
 
@@ -635,6 +635,8 @@ bool query_callback(const as_val *value, void *udata) {
             rb_yield(vRecord);
         } else {
             // TODO: write default aggregate block
+            VALUE *vArray = (VALUE*) udata;
+            rb_ary_push(*vArray, vRecord);
         }
     }
 
@@ -646,6 +648,7 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
     VALUE vNamespace;
     VALUE vSet;
     VALUE vConditions;
+    VALUE vArray;
 
     aerospike *ptr;
     as_error err;
@@ -658,11 +661,6 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 3..4)", argc);
     }
 
-    // TODO: write default aggregate block
-    if ( !rb_block_given_p() ) {
-        rb_raise(rb_eArgError, "no block given");
-    }
-
     vNamespace = vArgs[0];
     Check_Type(vNamespace, T_STRING);
 
@@ -673,7 +671,7 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
     Check_Type(vConditions, T_ARRAY);
 
     as_policy_query_init(&policy);
-    if (argc == 4) {
+    if (argc == 4 && TYPE(vArgs[3]) != T_NIL) {
         SET_POLICY(policy, vArgs[3]);
     }
 
@@ -717,13 +715,18 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
         }
     }
 
-    if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, NULL) != AEROSPIKE_OK) {
+    vArray = rb_ary_new();
+    if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, &vArray) != AEROSPIKE_OK) {
         as_query_destroy(&query);
         raise_aerospike_exception(err.code, err.message);
     }
     as_query_destroy(&query);
 
-    return Qnil;
+    if ( rb_block_given_p() ) {
+        return Qnil;
+    }
+
+    return vArray;
 }
 
 void define_client()
