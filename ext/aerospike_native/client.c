@@ -72,7 +72,6 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
             VALUE hash = rb_ary_entry(ary, n);
             VALUE host = rb_hash_aref(hash, rb_str_new2("host"));
             VALUE port = rb_hash_aref(hash, rb_str_new2("port"));
-            printf("host: %s:%d\n", StringValueCStr(host), NUM2UINT(port));
             as_config_add_host(&config, StringValueCStr(host), NUM2UINT(port));
         }
     }
@@ -715,4 +714,6 @@ void define_client()
     rb_define_method(ClientClass, "create_index", client_create_index, -1);
     rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
     rb_define_method(ClientClass, "where", client_exec_query, -1);
+
+    rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
 }
