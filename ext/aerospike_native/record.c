@@ -3,6 +3,12 @@
 
 VALUE RecordClass;
 
+/*
+ * call-seq:
+ *   new(key, bins, gen, ttl) -> AerospikeNative::Record
+ *
+ * initialize new record
+ */
 VALUE record_initialize(VALUE vSelf, VALUE vKey, VALUE vBins, VALUE vGen, VALUE vTtl)
 {
     check_aerospike_key(vKey);

@@ -19,6 +19,13 @@ static VALUE key_allocate(VALUE klass)
     return obj;
 }
 
+/*
+ * call-seq:
+ *   new(namespace, set, value) -> AerospikeNative::Key
+ *   new(namespace, set, value, digest) -> AerospikeNative::Key
+ *
+ * initialize new key
+ */
 VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace, vSet, vValue, vDigest = Qnil;

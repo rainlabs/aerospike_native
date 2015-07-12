@@ -30,6 +30,13 @@ static VALUE client_allocate(VALUE klass)
     return obj;
 }
 
+/*
+ * call-seq:
+ *   new() -> AerospikeNative::Client
+ *   new(hosts) -> AerospikeNative::Client
+ *
+ * initialize new client, use {'host' => ..., 'port' => ...} for each hosts element
+ */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
     VALUE ary = Qnil;
@@ -82,6 +89,13 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
     return self;
 }
 
+/*
+ * call-seq:
+ *   put(key, bins) -> true or false
+ *   put(key, bins, policy_settings) -> true or false
+ *
+ * put bins to specified key, bins are hash
+ */
 VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -151,6 +165,13 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   get(key) -> AerospikeNative::Record
+ *   get(key, policy_settings) -> AerospikeNative::Record
+ *
+ * get record
+ */
 VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -185,6 +206,13 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
     return rb_record_from_c(record, key);
 }
 
+/*
+ * call-seq:
+ *   operate(key, operations) -> true, false or AerospikeNative::Record
+ *   operate(key, operations, policy_settings) -> true, false or AerospikeNative::Record
+ *
+ * perform multiple operations in one transaction, operations are array of AerospikeNative::Operation
+ */
 VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -288,6 +316,13 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     }
 }
 
+/*
+ * call-seq:
+ *   remove(key) -> true or false
+ *   remove(key, policy_settings) -> true or false
+ *
+ * remove record
+ */
 VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -318,6 +353,13 @@ VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   exists?(key) -> true or false
+ *   exists?(key, policy_settings) -> true or false
+ *
+ * check existing record by key
+ */
 VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -357,6 +399,13 @@ VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   select(key, bins) -> AerospikeNative::Record
+ *   select(key, bins, policy_settings) -> AerospikeNative::Record
+ *
+ * select specified bins by key
+ */
 VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
@@ -415,6 +464,13 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
     return rb_record_from_c(record, key);
 }
 
+/*
+ * call-seq:
+ *   create_index(namespace, set, bin_name, index_name) -> true or false
+ *   create_index(namespace, set, bin_name, index_name, policy_settings) -> true or false
+ *
+ * Create new index, use {'type' => AerospikeNative::INDEX_NUMERIC or AerospikeNative::INDEX_STRING} as policy_settings to define index type
+ */
 VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace, vSet, vBinName, vIndexName;
@@ -482,6 +538,13 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
     return (task.done ? Qtrue : Qfalse);
 }
 
+/*
+ * call-seq:
+ *   drop_index(namespace, index_name) -> true or false
+ *   drop_index(namespace, index_name, policy_settings) -> true or false
+ *
+ * Remove specified index from node
+ */
 VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace, vIndexName;
@@ -538,6 +601,17 @@ bool query_callback(const as_val *value, void *udata) {
     return true;
 }
 
+/*
+ * call-seq:
+ *   where(namespace, set) -> array
+ *   where(namespace, set, conditions) -> array
+ *   where(namespace, set, conditions, policy_settings) -> array
+ *   where(namespace, set) { |record| ... } -> nil
+ *   where(namespace, set, conditions) { |record| ... } -> nil
+ *   where(namespace, set, conditions, policy_settings) { |record| ... } -> nil
+ *
+ * Perform a query with where clause
+ */
 VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vNamespace;
