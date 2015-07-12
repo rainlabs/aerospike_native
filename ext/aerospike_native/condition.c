@@ -29,7 +29,7 @@ VALUE condition_initialize(VALUE vSelf, VALUE vBinName, VALUE vIndexType, VALUE 
         case T_FIXNUM:
             break;
         default:
-            rb_raise(rb_eArgError, "Expected FIXNUM or NIL value");
+            rb_raise(rb_eTypeError, "wrong argument type for max value (expected Fixnum or Nil)");
         }
         break;
     case INDEX_STRING:
@@ -39,7 +39,7 @@ VALUE condition_initialize(VALUE vSelf, VALUE vBinName, VALUE vIndexType, VALUE 
         case T_STRING:
             break;
         default:
-            rb_raise(rb_eArgError, "Expected STRING or NIL value");
+            rb_raise(rb_eTypeError, "wrong argument type for max value (expected String or Nil)");
         }
         break;
     default:
@@ -80,7 +80,7 @@ VALUE condition_equal(VALUE vSelf, VALUE vBinName, VALUE vVal)
         index_type = INDEX_STRING;
         break;
     default:
-        rb_raise(rb_eArgError, "Expected only FIXNUM or STRING types");
+        rb_raise(rb_eTypeError, "wrong argument type for value (expected Fixnum or String)");
     }
 
     vArgs[0] = vBinName;

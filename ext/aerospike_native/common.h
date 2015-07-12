@@ -132,5 +132,39 @@ VALUE rb_hash_keys(VALUE hash);
     SET_REPLICA_POLICY(policy, vSettings);                                 \
     SET_CONSISTENCY_LEVEL_POLICY(policy, vSettings);
 
+#define SET_OPERATE_POLICY(policy, vSettings)                              \
+    VALUE vRetry, vKey, vGen, vReplica, vConsistencyLevel, vCommitLevel;   \
+    SET_POLICY(policy, vSettings);                                         \
+    SET_RETRY_POLICY(policy, vSettings);                                   \
+    SET_KEY_POLICY(policy, vSettings);                                     \
+    SET_GEN_POLICY(policy, vSettings);                                     \
+    SET_REPLICA_POLICY(policy, vSettings);                                 \
+    SET_CONSISTENCY_LEVEL_POLICY(policy, vSettings);                       \
+    SET_COMMIT_LEVEL_POLICY(policy, vSettings);
+
+#define SET_REMOVE_POLICY(policy, vSettings)                               \
+    VALUE vRetry, vKey, vGen, vCommitLevel, vGeneration;                   \
+    SET_POLICY(policy, vSettings);                                         \
+    SET_RETRY_POLICY(policy, vSettings);                                   \
+    SET_KEY_POLICY(policy, vSettings);                                     \
+    SET_GEN_POLICY(policy, vSettings);                                     \
+    SET_COMMIT_LEVEL_POLICY(policy, vSettings);                            \
+    vGeneration = rb_hash_aref(vSettings, rb_str_new2("generation"));      \
+    if (TYPE(vGeneration) == T_FIXNUM) {                                   \
+        policy.generation = FIX2UINT(vGeneration);                         \
+    }
+
+#define SET_INFO_POLICY(policy, vSettings)                                 \
+    VALUE vSendAsIs, vCheckBounds;                                         \
+    SET_POLICY(policy, vSettings);                                         \
+    vSendAsIs = rb_hash_aref(vSettings, rb_str_new2("send_as_is"));        \
+    if (TYPE(vSendAsIs) != T_NIL) {                                        \
+        policy.send_as_is = RTEST(vSendAsIs);                              \
+    }                                                                      \
+    vCheckBounds = rb_hash_aref(vSettings, rb_str_new2("check_bounds"));   \
+    if (TYPE(vCheckBounds) != T_NIL) {                                     \
+        policy.check_bounds = RTEST(vCheckBounds);                         \
+    }
+
 #endif // COMMON_H
 

@@ -135,7 +135,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
             as_record_set_int64(&record, StringValueCStr(bin_name), NUM2LONG(bin_value));
             break;
         default:
-            rb_raise(rb_eArgError, "Incorrect input type (expected string or fixnum)");
+            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Fixnum or String)");
             break;
         }
      }
@@ -238,7 +238,7 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     as_policy_operate_init(&policy);
 
     if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
-        SET_POLICY(policy, vArgs[2]);
+        SET_OPERATE_POLICY(policy, vArgs[2]);
     }
 
     idx = RARRAY_LEN(vOperations);
@@ -353,7 +353,7 @@ VALUE client_remove(int argc, VALUE* vArgs, VALUE vSelf)
     check_aerospike_key(vKey);
 
     if (argc == 2 && TYPE(vArgs[2]) != T_NIL) {
-        SET_POLICY(policy, vArgs[2]);
+        SET_REMOVE_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -385,7 +385,7 @@ VALUE client_exists(int argc, VALUE* vArgs, VALUE vSelf)
     check_aerospike_key(vKey);
 
     if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
-        SET_POLICY(policy, vArgs[1]);
+        SET_READ_POLICY(policy, vArgs[1]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -434,7 +434,7 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
     }
 
     if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
-        SET_POLICY(policy, vArgs[2]);
+        SET_READ_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -514,7 +514,7 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 
     if (argc == 5 && TYPE(vArgs[4]) != T_NIL) {
         VALUE vType = Qnil;
-        SET_POLICY(policy, vArgs[4]);
+        SET_INFO_POLICY(policy, vArgs[4]);
         vType = rb_hash_aref(vArgs[4], rb_str_new2("type"));
         if (TYPE(vType) == T_FIXNUM) {
             switch(FIX2INT(vType)) {
@@ -544,9 +544,11 @@ VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 
     task.as = ptr;
     strcpy(task.ns, StringValueCStr(vNamespace));
-    strcpy(task.name, StringValueCStr(vBinName));
+    strcpy(task.name, StringValueCStr(vIndexName));
     task.done = false;
-    aerospike_index_create_wait(&err, &task, 1000);
+    if (aerospike_index_create_wait(&err, &task, 1000) != AEROSPIKE_OK) {
+        raise_aerospike_exception(err.code, err.message);
+    }
 
     return (task.done ? Qtrue : Qfalse);
 }
@@ -570,7 +572,7 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
     Check_Type(vIndexName, T_STRING);
 
     if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
-        SET_POLICY(policy, vArgs[2]);
+        SET_INFO_POLICY(policy, vArgs[2]);
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
@@ -634,7 +636,6 @@ bool query_callback(const as_val *value, void *udata) {
         if ( rb_block_given_p() ) {
             rb_yield(vRecord);
         } else {
-            // TODO: write default aggregate block
             VALUE *vArray = (VALUE*) udata;
             rb_ary_push(*vArray, vRecord);
         }
@@ -657,8 +658,8 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
 
     int idx = 0, n = 0;
 
-    if (argc > 4 || argc < 3) {  // there should only be 3 or 4 arguments
-        rb_raise(rb_eArgError, "wrong number of arguments (%d for 3..4)", argc);
+    if (argc > 4 || argc < 2) {  // there should only be 2, 3 or 4 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..4)", argc);
     }
 
     vNamespace = vArgs[0];
@@ -668,16 +669,19 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
     Check_Type(vSet, T_STRING);
 
     vConditions = vArgs[2];
-    Check_Type(vConditions, T_ARRAY);
+    switch(TYPE(vConditions)) {
+    case T_NIL:
+        break;
+    case T_ARRAY:
+        idx = RARRAY_LEN(vConditions);
+        break;
+    default:
+        rb_raise(rb_eTypeError, "wrong argument type for condition (expected Array or Nil)");
+    }
 
     as_policy_query_init(&policy);
     if (argc == 4 && TYPE(vArgs[3]) != T_NIL) {
         SET_POLICY(policy, vArgs[3]);
-    }
-
-    idx = RARRAY_LEN(vConditions);
-    if (idx == 0) {
-        return Qnil;
     }
 
     Data_Get_Struct(vSelf, aerospike, ptr);
