@@ -154,16 +154,12 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
 VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
-    VALUE vParams[4];
 
     aerospike *ptr;
     as_key* key;
     as_error err;
     as_record* record = NULL;
     as_policy_read policy;
-    as_bin bin;
-
-    int n = 0;
 
     if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
@@ -186,35 +182,13 @@ VALUE client_get(int argc, VALUE* vArgs, VALUE vSelf)
         raise_aerospike_exception(err.code, err.message);
     }
 
-    vParams[0] = vKey;
-    vParams[1] = rb_hash_new();
-    vParams[2] = UINT2NUM(record->gen);
-    vParams[3] = UINT2NUM(record->ttl);
-
-    for(n = 0; n < record->bins.size; n++) {
-        bin = record->bins.entries[n];
-        switch( as_val_type(bin.valuep) ) {
-        case AS_INTEGER:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-            break;
-        case AS_STRING:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-            break;
-        case AS_UNDEF:
-        default:
-            break;
-        }
-    }
-
-    as_record_destroy(record);
-    return rb_class_new_instance(4, vParams, RecordClass);
+    return rb_record_from_c(record, key);
 }
 
 VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vOperations;
-    VALUE vParams[4];
     long idx = 0, n = 0;
     bool isset_read = false;
 
@@ -224,7 +198,6 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
     as_error err;
     as_policy_operate policy;
     as_record* record = NULL;
-    as_bin bin;
 
     if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
         rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
@@ -303,28 +276,7 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
 
         as_operations_destroy(&ops);
 
-        vParams[0] = vKey;
-        vParams[1] = rb_hash_new();
-        vParams[2] = UINT2NUM(record->gen);
-        vParams[3] = UINT2NUM(record->ttl);
-
-        for(n = 0; n < record->bins.size; n++) {
-            bin = record->bins.entries[n];
-            switch( as_val_type(bin.valuep) ) {
-            case AS_INTEGER:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-                break;
-            case AS_STRING:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-                break;
-            case AS_UNDEF:
-            default:
-                break;
-            }
-        }
-
-        as_record_destroy(record);
-        return rb_class_new_instance(4, vParams, RecordClass);
+        return rb_record_from_c(record, key);
     } else {
         if (aerospike_key_operate(ptr, &err, &policy, key, &ops, NULL) != AEROSPIKE_OK) {
             as_operations_destroy(&ops);
@@ -409,14 +361,12 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKey;
     VALUE vArray;
-    VALUE vParams[4];
 
     aerospike *ptr;
     as_key* key;
     as_error err;
     as_policy_read policy;
     as_record* record = NULL;
-    as_bin bin;
     long n = 0, idx = 0;
 
     if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
@@ -462,28 +412,7 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
         free(bins[n]);
     }
 
-    vParams[0] = vKey;
-    vParams[1] = rb_hash_new();
-    vParams[2] = UINT2NUM(record->gen);
-    vParams[3] = UINT2NUM(record->ttl);
-
-    for(n = 0; n < record->bins.size; n++) {
-        bin = record->bins.entries[n];
-        switch( as_val_type(bin.valuep) ) {
-        case AS_INTEGER:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-            break;
-        case AS_STRING:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-            break;
-        case AS_UNDEF:
-        default:
-            break;
-        }
-    }
-
-    as_record_destroy(record);
-    return rb_class_new_instance(4, vParams, RecordClass);
+    return rb_record_from_c(record, key);
 }
 
 VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
@@ -585,12 +514,8 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
 }
 
 bool query_callback(const as_val *value, void *udata) {
-    VALUE vParams[4], vKeyParams[4];
     VALUE vRecord;
-
     as_record *record;
-    as_bin bin;
-    int n;
 
     if (value == NULL) {
         // query is complete
@@ -600,38 +525,7 @@ bool query_callback(const as_val *value, void *udata) {
     record = as_record_fromval(value);
 
     if (record != NULL) {
-        vKeyParams[0] = rb_str_new2(record->key.ns);
-        vKeyParams[1] = rb_str_new2(record->key.set);
-
-        if (record->key.valuep == NULL) {
-            vKeyParams[2] = Qnil;
-        } else {
-            vKeyParams[2] = rb_str_new2(record->key.value.string.value);
-        }
-        vKeyParams[3] = rb_str_new(record->key.digest.value, AS_DIGEST_VALUE_SIZE);
-
-        vParams[0] = rb_class_new_instance(4, vKeyParams, KeyClass);
-        vParams[1] = rb_hash_new();
-        vParams[2] = UINT2NUM(record->gen);
-        vParams[3] = UINT2NUM(record->ttl);
-
-        for(n = 0; n < record->bins.size; n++) {
-            bin = record->bins.entries[n];
-            switch( as_val_type(bin.valuep) ) {
-            case AS_INTEGER:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
-                break;
-            case AS_STRING:
-                rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
-                break;
-            case AS_UNDEF:
-            default:
-                break;
-            }
-        }
-
-        as_record_destroy(record);
-        vRecord = rb_class_new_instance(4, vParams, RecordClass);
+        vRecord = rb_record_from_c(record, NULL);
 
         if ( rb_block_given_p() ) {
             rb_yield(vRecord);
