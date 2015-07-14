@@ -700,6 +700,14 @@ VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
     return vArray;
 }
 
+VALUE client_set_logger(VALUE vSelf, VALUE vNewLogger)
+{
+    VALUE vLogger = rb_cv_get(vSelf, "@@logger");
+    rb_iv_set(vLogger, "@internal", vNewLogger);
+
+    return vLogger;
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -716,4 +724,5 @@ void define_client()
     rb_define_method(ClientClass, "where", client_exec_query, -1);
 
     rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
+    rb_define_singleton_method(ClientClass, "set_logger", client_set_logger, 1);
 }
