@@ -16,7 +16,7 @@ bool aerospike_log_callback(as_log_level level, const char *func, const char *fi
     msg[1023] = '\0';
     va_end(ap);
 
-    sprintf(log_msg, "%d (Aerospike) - %s\n", level, msg);
+    sprintf(log_msg, "%d (Aerospike) - %s", level, msg);
 
     if(TYPE(vLogger) != T_NIL) {
         rb_funcall(vLogger, rb_intern("write"), 2, INT2FIX(level), rb_str_new2(log_msg));
@@ -27,14 +27,16 @@ bool aerospike_log_callback(as_log_level level, const char *func, const char *fi
 
 VALUE logger_initialize(VALUE vSelf)
 {
-    as_log_set_level(AS_LOG_LEVEL_INFO);
+    int default_level = AS_LOG_LEVEL_DEBUG;
+    as_log_set_level(default_level);
     as_log_set_callback(aerospike_log_callback);
-    rb_iv_set(vSelf, "@level", INT2FIX(AS_LOG_LEVEL_INFO));
+    rb_iv_set(vSelf, "@level", INT2FIX(default_level));
     return vSelf;
 }
 
 VALUE logger_set_level(VALUE vSelf, VALUE vLevel)
 {
+    VALUE vInternalLogger = rb_iv_get(vSelf, "@internal");
     int log_level = AS_LOG_LEVEL_INFO;
     VALUE vError = ID2SYM( rb_intern("error") );
     VALUE vWarn = ID2SYM( rb_intern("warn") );
@@ -59,6 +61,12 @@ VALUE logger_set_level(VALUE vSelf, VALUE vLevel)
 
     as_log_set_level(log_level);
     rb_iv_set(vSelf, "@level", INT2FIX(log_level));
+
+    if (TYPE(vInternalLogger) != T_NIL) {
+        int internal_level = 3 - (log_level == AS_LOG_LEVEL_TRACE ? AS_LOG_LEVEL_DEBUG : log_level);
+        rb_iv_set(vInternalLogger, "@level", INT2FIX(internal_level));
+    }
+
     return Qtrue;
 }
 
@@ -79,7 +87,7 @@ VALUE logger_write(VALUE vSelf, VALUE vLevel, VALUE vMsg)
     case T_NIL:
         if (level <= FIX2INT(vInternalLevel)) {
             // TODO: add default behavior with write into file
-            printf(StringValueCStr(vMsg));
+            fprintf(stdout, "%s\n", StringValueCStr(vMsg));
             return vMsg;
         }
         break;

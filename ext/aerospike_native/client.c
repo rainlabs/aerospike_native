@@ -708,6 +708,14 @@ VALUE client_set_logger(VALUE vSelf, VALUE vNewLogger)
     return vLogger;
 }
 
+VALUE client_set_log_level(VALUE vSelf, VALUE vLevel)
+{
+    VALUE vLogger = rb_cv_get(vSelf, "@@logger");
+    Check_Type(vLevel, T_SYMBOL);
+
+    return rb_funcall(vLogger, rb_intern("set_level"), 1, vLevel);
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -725,4 +733,5 @@ void define_client()
 
     rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
     rb_define_singleton_method(ClientClass, "set_logger", client_set_logger, 1);
+    rb_define_singleton_method(ClientClass, "set_log_level", client_set_log_level, 1);
 }
