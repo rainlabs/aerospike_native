@@ -35,6 +35,8 @@ Or install it yourself as:
 
 ## Usage
 
+### Basic
+
 ```ruby
 require 'aerospike_native'
 
@@ -55,7 +57,17 @@ client.create_index('test', 'test', 'number', 'number_idx');
 
 records = []
 client.where('test', 'test', [AerospikeNative::Condition.range("number", 1, 7)]) { |record| records << record }
-records
+puts records.inspect
+records.each { |record| client.remove(record.key) }
+```
+
+### Logger
+
+You can specify logger and log level
+
+```ruby
+AerospikeNative::Client.set_logger Rails.logger    # stdout by default
+AerospikeNative::Client.set_log_level :debug       # :info by default
 ```
 
 ## Contributing
