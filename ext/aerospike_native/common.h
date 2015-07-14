@@ -3,6 +3,7 @@
 
 #include <ruby.h>
 #include "exception.h"
+#include "logger.h"
 
 VALUE rb_hash_keys(VALUE hash);
 
