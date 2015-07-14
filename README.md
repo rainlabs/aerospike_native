@@ -67,7 +67,7 @@ You can specify logger and log level
 
 ```ruby
 AerospikeNative::Client.set_logger Rails.logger    # stdout by default
-AerospikeNative::Client.set_log_level :debug       # :info by default
+AerospikeNative::Client.set_log_level :debug       # :debug by default
 ```
 
 ## Contributing
