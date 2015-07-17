@@ -141,6 +141,9 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
         Check_Type(bin_name, T_STRING);
 
         switch( TYPE(bin_value) ) {
+        case T_NIL:
+            as_record_set_nil(&record, StringValueCStr(bin_name));
+            break;
         case T_STRING:
             as_record_set_str(&record, StringValueCStr(bin_name), StringValueCStr(bin_value));
             break;
@@ -148,7 +151,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
             as_record_set_int64(&record, StringValueCStr(bin_name), NUM2LONG(bin_value));
             break;
         default:
-            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Fixnum or String)");
+            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Nil, Fixnum or String)");
             break;
         }
      }
@@ -258,11 +261,23 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
         switch( op_type ) {
         case OPERATION_WRITE:
             switch( TYPE(bin_value) ) {
+            case T_NIL: {
+                as_record rec;
+                as_record_inita(&rec, 1);
+                as_record_set_nil(&rec, StringValueCStr( bin_name ));
+                ops.binops.entries[ops.binops.size].op = AS_OPERATOR_WRITE;
+                ops.binops.entries[ops.binops.size].bin = rec.bins.entries[0];
+                ops.binops.size++;
+                break;
+            }
             case T_STRING:
                 as_operations_add_write_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
                 break;
             case T_FIXNUM:
                 as_operations_add_write_int64(&ops, StringValueCStr( bin_name ), NUM2LONG( bin_value ));
+                break;
+            default:
+                rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Nil, Fixnum or String)");
                 break;
             }
 
