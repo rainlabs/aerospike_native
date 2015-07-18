@@ -2,7 +2,6 @@
 #include "operation.h"
 #include "key.h"
 #include "record.h"
-#include "condition.h"
 #include "query.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
@@ -45,7 +44,7 @@ static VALUE client_allocate(VALUE klass)
  *   new() -> AerospikeNative::Client
  *   new(hosts) -> AerospikeNative::Client
  *
- * initialize new client, use {'host' => ..., 'port' => ...} for each hosts element
+ * initialize new client, use \{'host' => ..., 'port' => ...\} for each hosts element
  */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
@@ -493,7 +492,7 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
  *   create_index(namespace, set, bin_name, index_name) -> true or false
  *   create_index(namespace, set, bin_name, index_name, policy_settings) -> true or false
  *
- * Create new index, use {'type' => AerospikeNative::INDEX_NUMERIC or AerospikeNative::INDEX_STRING} as policy_settings to define index type
+ * Create new index, use \{'type' => AerospikeNative::INDEX_NUMERIC or AerospikeNative::INDEX_STRING\} as policy_settings to define index type
  */
 VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 {

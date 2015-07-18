@@ -3,7 +3,6 @@
 #include "key.h"
 #include "operation.h"
 #include "record.h"
-#include "condition.h"
 #include "policy.h"
 #include "query.h"
 
@@ -18,7 +17,6 @@ void Init_aerospike_native()
     define_native_key();
     define_record();
     define_operation();
-    define_condition();
     define_policy();
     define_client();
 
