@@ -7,6 +7,16 @@
 
 VALUE rb_hash_keys(VALUE hash);
 
+#define GET_STRING(vString)                                                \
+    switch(TYPE(vString)) {                                                \
+    case T_SYMBOL:                                                         \
+        vString = rb_sym_to_s(vString);                                    \
+    case T_STRING:                                                         \
+        break;                                                             \
+    default:                                                               \
+        rb_raise(rb_eTypeError, "wrong argument type (expected String or Symbol)"); \
+    }
+
 #define SET_POLICY(policy, vSettings)                                      \
     VALUE vTimeout;                                                        \
     Check_Type(vSettings, T_HASH);                                         \
