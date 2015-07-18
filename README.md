@@ -55,8 +55,7 @@ client.remove(key)
 end
 client.create_index('test', 'test', 'number', 'number_idx');
 
-records = []
-client.where('test', 'test', [AerospikeNative::Condition.range("number", 1, 7)]) { |record| records << record }
+records = client.query('test', 'test').where(number: [1, 7])
 puts records.inspect
 records.each { |record| client.remove(record.key) }
 ```
