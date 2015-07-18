@@ -2,7 +2,7 @@
 #include "operation.h"
 #include "key.h"
 #include "record.h"
-#include "condition.h"
+#include "query.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -10,6 +10,15 @@
 #include <aerospike/aerospike_query.h>
 
 VALUE ClientClass;
+
+void check_aerospike_client(VALUE vKey)
+{
+    char sName[] = "AerospikeNative::Client";
+
+    if (strcmp(sName, rb_obj_classname(vKey)) != 0) {
+        rb_raise(rb_eArgError, "Incorrect type (expected %s)", sName);
+    }
+}
 
 static void client_deallocate(void *p)
 {
@@ -35,7 +44,7 @@ static VALUE client_allocate(VALUE klass)
  *   new() -> AerospikeNative::Client
  *   new(hosts) -> AerospikeNative::Client
  *
- * initialize new client, use {'host' => ..., 'port' => ...} for each hosts element
+ * initialize new client, use \{'host' => ..., 'port' => ...\} for each hosts element
  */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
@@ -141,6 +150,9 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
         Check_Type(bin_name, T_STRING);
 
         switch( TYPE(bin_value) ) {
+        case T_NIL:
+            as_record_set_nil(&record, StringValueCStr(bin_name));
+            break;
         case T_STRING:
             as_record_set_str(&record, StringValueCStr(bin_name), StringValueCStr(bin_value));
             break;
@@ -148,7 +160,7 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
             as_record_set_int64(&record, StringValueCStr(bin_name), NUM2LONG(bin_value));
             break;
         default:
-            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Fixnum or String)");
+            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Nil, Fixnum or String)");
             break;
         }
      }
@@ -258,11 +270,23 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
         switch( op_type ) {
         case OPERATION_WRITE:
             switch( TYPE(bin_value) ) {
+            case T_NIL: {
+                as_record rec;
+                as_record_inita(&rec, 1);
+                as_record_set_nil(&rec, StringValueCStr( bin_name ));
+                ops.binops.entries[ops.binops.size].op = AS_OPERATOR_WRITE;
+                ops.binops.entries[ops.binops.size].bin = rec.bins.entries[0];
+                ops.binops.size++;
+                break;
+            }
             case T_STRING:
                 as_operations_add_write_str(&ops, StringValueCStr( bin_name ), StringValueCStr( bin_value ));
                 break;
             case T_FIXNUM:
                 as_operations_add_write_int64(&ops, StringValueCStr( bin_name ), NUM2LONG( bin_value ));
+                break;
+            default:
+                rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Nil, Fixnum or String)");
                 break;
             }
 
@@ -468,7 +492,7 @@ VALUE client_select(int argc, VALUE* vArgs, VALUE vSelf)
  *   create_index(namespace, set, bin_name, index_name) -> true or false
  *   create_index(namespace, set, bin_name, index_name, policy_settings) -> true or false
  *
- * Create new index, use {'type' => AerospikeNative::INDEX_NUMERIC or AerospikeNative::INDEX_STRING} as policy_settings to define index type
+ * Create new index, use \{'type' => AerospikeNative::INDEX_NUMERIC or AerospikeNative::INDEX_STRING\} as policy_settings to define index type
  */
 VALUE client_create_index(int argc, VALUE* vArgs, VALUE vSelf)
 {
@@ -575,129 +599,22 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
     return Qtrue;
 }
 
-bool query_callback(const as_val *value, void *udata) {
-    VALUE vRecord;
-    as_record *record;
-
-    if (value == NULL) {
-        // query is complete
-        return true;
-    }
-
-    record = as_record_fromval(value);
-
-    if (record != NULL) {
-        vRecord = rb_record_from_c(record, NULL);
-
-        if ( rb_block_given_p() ) {
-            rb_yield(vRecord);
-        } else {
-            VALUE *vArray = (VALUE*) udata;
-            rb_ary_push(*vArray, vRecord);
-        }
-    }
-
-    return true;
-}
 
 /*
  * call-seq:
- *   where(namespace, set) -> array
- *   where(namespace, set, conditions) -> array
- *   where(namespace, set, conditions, policy_settings) -> array
- *   where(namespace, set) { |record| ... } -> nil
- *   where(namespace, set, conditions) { |record| ... } -> nil
- *   where(namespace, set, conditions, policy_settings) { |record| ... } -> nil
+ *   where(namespace, set) -> AerospikeNative::Query
  *
- * Perform a query with where clause
+ * Instanciate new query
  */
-VALUE client_exec_query(int argc, VALUE* vArgs, VALUE vSelf)
+VALUE client_query(VALUE vSelf, VALUE vNamespace, VALUE vSet)
 {
-    VALUE vNamespace;
-    VALUE vSet;
-    VALUE vConditions;
-    VALUE vArray;
+    VALUE vParams[3];
 
-    aerospike *ptr;
-    as_error err;
-    as_policy_query policy;
-    as_query query;
+    vParams[0] = vSelf;
+    vParams[1] = vNamespace;
+    vParams[2] = vSet;
 
-    int idx = 0, n = 0;
-
-    if (argc > 4 || argc < 2) {  // there should only be 2, 3 or 4 arguments
-        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..4)", argc);
-    }
-
-    vNamespace = vArgs[0];
-    Check_Type(vNamespace, T_STRING);
-
-    vSet = vArgs[1];
-    Check_Type(vSet, T_STRING);
-
-    vConditions = vArgs[2];
-    switch(TYPE(vConditions)) {
-    case T_NIL:
-        break;
-    case T_ARRAY:
-        idx = RARRAY_LEN(vConditions);
-        break;
-    default:
-        rb_raise(rb_eTypeError, "wrong argument type for condition (expected Array or Nil)");
-    }
-
-    as_policy_query_init(&policy);
-    if (argc == 4 && TYPE(vArgs[3]) != T_NIL) {
-        SET_POLICY(policy, vArgs[3]);
-    }
-
-    Data_Get_Struct(vSelf, aerospike, ptr);
-
-    as_query_init(&query, StringValueCStr(vNamespace), StringValueCStr(vSet));
-    as_query_where_inita(&query, idx);
-    for(n = 0; n < idx; n++) {
-        VALUE vMin, vMax, vBinName;
-        VALUE vCondition = rb_ary_entry(vConditions, n);
-        check_aerospike_condition(vCondition);
-        vMin = rb_iv_get(vCondition, "@min");
-        vMax = rb_iv_get(vCondition, "@max");
-        vBinName = rb_iv_get(vCondition, "@bin_name");
-
-        switch(TYPE(vMin)) {
-        case T_FIXNUM:
-            switch(TYPE(vMax)) {
-            case T_NIL:
-                as_query_where(&query, StringValueCStr(vBinName), as_integer_equals(FIX2LONG(vMin)));
-                break;
-            case T_FIXNUM:
-                as_query_where(&query, StringValueCStr(vBinName), as_integer_range(FIX2LONG(vMin), FIX2LONG(vMax)));
-                break;
-            default:
-                rb_raise(rb_eArgError, "Incorrect condition");
-            }
-
-            break;
-        case T_STRING:
-            Check_Type(vMax, T_NIL);
-            as_query_where(&query, StringValueCStr(vBinName), as_string_equals(StringValueCStr(vMin)));
-            break;
-        default:
-            rb_raise(rb_eArgError, "Incorrect condition");
-        }
-    }
-
-    vArray = rb_ary_new();
-    if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, &vArray) != AEROSPIKE_OK) {
-        as_query_destroy(&query);
-        raise_aerospike_exception(err.code, err.message);
-    }
-    as_query_destroy(&query);
-
-    if ( rb_block_given_p() ) {
-        return Qnil;
-    }
-
-    return vArray;
+    return rb_class_new_instance(3, vParams, QueryClass);
 }
 
 VALUE client_set_logger(VALUE vSelf, VALUE vNewLogger)
@@ -729,7 +646,7 @@ void define_client()
     rb_define_method(ClientClass, "select", client_select, -1);
     rb_define_method(ClientClass, "create_index", client_create_index, -1);
     rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
-    rb_define_method(ClientClass, "where", client_exec_query, -1);
+    rb_define_method(ClientClass, "query", client_query, 2);
 
     rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
     rb_define_singleton_method(ClientClass, "set_logger", client_set_logger, 1);

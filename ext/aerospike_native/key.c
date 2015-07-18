@@ -81,10 +81,10 @@ VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
 
 void check_aerospike_key(VALUE vKey)
 {
-    char sKeyName[] = "AerospikeNative::Key";
+    char sName[] = "AerospikeNative::Key";
 
-    if (strcmp(sKeyName, rb_obj_classname(vKey)) != 0) {
-        rb_raise(rb_eArgError, "Incorrect type (expected %s)", sKeyName);
+    if (strcmp(sName, rb_obj_classname(vKey)) != 0) {
+        rb_raise(rb_eArgError, "Incorrect type (expected %s)", sName);
     }
 }
 

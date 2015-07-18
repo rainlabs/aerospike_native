@@ -1,5 +1,6 @@
 #include "record.h"
 #include "key.h"
+#include "client.h"
 
 VALUE RecordClass;
 
@@ -27,9 +28,11 @@ VALUE record_initialize(VALUE vSelf, VALUE vKey, VALUE vBins, VALUE vGen, VALUE 
 VALUE rb_record_from_c(as_record* record, as_key* key)
 {
     VALUE vKeyParams[5], vParams[4];
+    VALUE vLogger;
     as_key current_key;
     as_bin bin;
     int n;
+    char msg[200];
 
     if (key == NULL) {
         current_key = record->key;
@@ -43,7 +46,12 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
     if (current_key.valuep == NULL) {
         vKeyParams[2] = Qnil;
     } else {
-        vKeyParams[2] = rb_str_new2(current_key.value.string.value);
+        char *str = current_key.value.string.value;
+        if (str == NULL) {
+            vKeyParams[2] = INT2NUM(current_key.value.integer.value);
+        } else {
+            vKeyParams[2] = rb_str_new2(str);
+        }
     }
     vKeyParams[3] = rb_str_new(current_key.digest.value, AS_DIGEST_VALUE_SIZE);
 
@@ -55,6 +63,9 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
     for(n = 0; n < record->bins.size; n++) {
         bin = record->bins.entries[n];
         switch( as_val_type(bin.valuep) ) {
+        case AS_NIL:
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), Qnil);
+            break;
         case AS_INTEGER:
             rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
             break;
@@ -63,6 +74,9 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
             break;
         case AS_UNDEF:
         default:
+            vLogger = rb_cv_get(ClientClass, "@@logger");
+            sprintf(msg, "unhandled val type: %d\n", as_val_type(bin.valuep));
+            rb_funcall(vLogger, rb_intern("warn"), 1, rb_str_new2(msg));
             break;
         }
     }

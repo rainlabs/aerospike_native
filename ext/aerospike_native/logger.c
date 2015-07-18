@@ -7,7 +7,6 @@ bool aerospike_log_callback(as_log_level level, const char *func, const char *fi
     uint32_t line, const char *fmt, ...)
 {
     char msg[1024] = {0};
-    char log_msg[1500] = {0};
     va_list ap;
     VALUE vLogger = rb_cv_get(ClientClass, "@@logger");
 
@@ -16,10 +15,8 @@ bool aerospike_log_callback(as_log_level level, const char *func, const char *fi
     msg[1023] = '\0';
     va_end(ap);
 
-    sprintf(log_msg, "%d (Aerospike) - %s", level, msg);
-
     if(TYPE(vLogger) != T_NIL) {
-        rb_funcall(vLogger, rb_intern("write"), 2, INT2FIX(level), rb_str_new2(log_msg));
+        rb_funcall(vLogger, rb_intern("write"), 2, INT2FIX(level), rb_str_new2(msg));
     }
 
     return true;
@@ -86,6 +83,26 @@ VALUE logger_write(VALUE vSelf, VALUE vLevel, VALUE vMsg)
     switch(TYPE(vInternalLogger)) {
     case T_NIL:
         if (level <= FIX2INT(vInternalLevel)) {
+            switch(level) {
+            case AS_LOG_LEVEL_ERROR:
+                vMsg = rb_str_plus(rb_str_new2("ERROR (AEROSPIKE): "), vMsg);
+                break;
+            case AS_LOG_LEVEL_WARN:
+                vMsg = rb_str_plus(rb_str_new2("WARN  (AEROSPIKE): "), vMsg);
+                break;
+            case AS_LOG_LEVEL_INFO:
+                vMsg = rb_str_plus(rb_str_new2("INFO  (AEROSPIKE): "), vMsg);
+                break;
+            case AS_LOG_LEVEL_DEBUG:
+                vMsg = rb_str_plus(rb_str_new2("DEBUG (AEROSPIKE): "), vMsg);
+                break;
+            case AS_LOG_LEVEL_TRACE:
+                vMsg = rb_str_plus(rb_str_new2("DEBUG (AEROSPIKE): "), vMsg);
+                break;
+            default:
+                vMsg = rb_str_plus(rb_str_new2("UNKNOWN (AEROSPIKE): "), vMsg);
+                break;
+            }
             // TODO: add default behavior with write into file
             fprintf(stdout, "%s\n", StringValueCStr(vMsg));
             return vMsg;
