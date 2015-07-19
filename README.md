@@ -26,12 +26,16 @@ Or install it yourself as:
 * `remove` command
 * `select` command
 * `exixts?` command
-* `where` command (query support)
+* `query` command (where and select support)
 * :disappointed: Raw (bytes) type is not supported
 * Supported policies with all parameters for described commands
 * Supported digest keys
 * Supported exceptions (`AerospikeNative::Exception`) with several error codes constants `AerospikeNative::Exception.constants`
 * Index management (`create_index` and `drop_index`)
+
+## Examples
+
+In path `examples`
 
 ## Usage
 
