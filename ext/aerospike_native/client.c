@@ -602,9 +602,9 @@ VALUE client_drop_index(int argc, VALUE* vArgs, VALUE vSelf)
 
 /*
  * call-seq:
- *   where(namespace, set) -> AerospikeNative::Query
+ *   query(namespace, set) -> AerospikeNative::Query
  *
- * Instanciate new query
+ * Instantiate new query
  */
 VALUE client_query(VALUE vSelf, VALUE vNamespace, VALUE vSet)
 {
