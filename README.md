@@ -26,12 +26,17 @@ Or install it yourself as:
 * `remove` command
 * `select` command
 * `exixts?` command
-* `where` command (query support)
-* :disappointed: Raw (bytes) type is not supported
+* `query` command (where and select support)
+* Supported bytes type for non-native object types(string or fixnum) via [msgpack](https://github.com/msgpack/msgpack-ruby)
+* lists and maps for bin value not supported yet (stored as bytes at the moment)
 * Supported policies with all parameters for described commands
 * Supported digest keys
 * Supported exceptions (`AerospikeNative::Exception`) with several error codes constants `AerospikeNative::Exception.constants`
 * Index management (`create_index` and `drop_index`)
+
+## Examples
+
+In path `examples`
 
 ## Usage
 
