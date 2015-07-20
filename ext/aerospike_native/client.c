@@ -166,9 +166,16 @@ VALUE client_put(int argc, VALUE* vArgs, VALUE vSelf)
         case T_FIXNUM:
             as_record_set_int64(&record, StringValueCStr(bin_name), NUM2LONG(bin_value));
             break;
-        default:
-            rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Nil, Fixnum or String)");
+//        case T_ARRAY:
+//        case T_HASH:
+//            rb_raise(rb_eTypeError, "wrong argument type for bin value (hashes and arrays not supported yet)");
+//            break;
+        default: {
+            VALUE vBytes = rb_funcall(bin_value, rb_intern("to_msgpack"), 0);
+            int strSize = RSTRING_LEN(vBytes);
+            as_record_set_raw(&record, StringValueCStr(bin_name), StringValuePtr(vBytes), strSize);
             break;
+        }
         }
      }
 
@@ -292,9 +299,16 @@ VALUE client_operate(int argc, VALUE* vArgs, VALUE vSelf)
             case T_FIXNUM:
                 as_operations_add_write_int64(&ops, StringValueCStr( bin_name ), NUM2LONG( bin_value ));
                 break;
-            default:
-                rb_raise(rb_eTypeError, "wrong argument type for bin value (expected Nil, Fixnum or String)");
+//            case T_ARRAY:
+//            case T_HASH:
+//                rb_raise(rb_eTypeError, "wrong argument type for bin value (hashes and arrays not supported yet)");
+//                break;
+            default: {
+                VALUE vBytes = rb_funcall(bin_value, rb_intern("to_msgpack"), 0);
+                int strSize = RSTRING_LEN(vBytes);
+                as_operations_add_write_raw(&ops, StringValueCStr(bin_name), StringValuePtr(vBytes), strSize);
                 break;
+            }
             }
 
             break;

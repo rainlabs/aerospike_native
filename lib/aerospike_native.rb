@@ -1,4 +1,5 @@
 require "aerospike_native/version"
+require "msgpack"
 
 module AerospikeNative
   # Your code goes here...
