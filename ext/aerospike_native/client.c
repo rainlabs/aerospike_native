@@ -78,10 +78,17 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
     if (TYPE(ary) == T_ARRAY) {
         idx = RARRAY_LEN(ary);
         for(n = 0; n < idx; n++) {
+            VALUE vHost, vPort;
             VALUE hash = rb_ary_entry(ary, n);
-            VALUE host = rb_hash_aref(hash, rb_str_new2("host"));
-            VALUE port = rb_hash_aref(hash, rb_str_new2("port"));
-            as_config_add_host(&config, StringValueCStr(host), NUM2UINT(port));
+            vHost = rb_hash_aref(hash, rb_str_new2("host"));
+            if (TYPE(vHost) == T_NIL) {
+                vHost = rb_hash_aref(hash, ID2SYM( rb_intern("host") ));
+            }
+            vPort = rb_hash_aref(hash, rb_str_new2("port"));
+            if (TYPE(vPort) == T_NIL) {
+                vPort = rb_hash_aref(hash, ID2SYM( rb_intern("port") ));
+            }
+            as_config_add_host(&config, StringValueCStr(vHost), NUM2UINT(vPort));
         }
     }
 
