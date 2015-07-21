@@ -10,10 +10,23 @@ VALUE exception_initialize(VALUE vSelf, VALUE vMessage)
     return vSelf;
 }
 
+VALUE exception_inspect(VALUE vSelf)
+{
+    VALUE vCode, vMsg;
+    char sMsg[200];
+
+    vCode = rb_iv_get(vSelf, "@code");
+    vMsg = rb_iv_get(vSelf, "@message");
+    sprintf(sMsg, "#<AerospikeNative::Exception: @code=%d, @message=\"%s\">", NUM2INT(vCode), StringValueCStr(vMsg));
+
+    return rb_str_new2(sMsg);
+}
+
 void define_exception()
 {
     ExceptionClass = rb_define_class_under(AerospikeNativeClass, "Exception", rb_eStandardError);
     rb_define_method(ExceptionClass, "initialize", exception_initialize, 1);
+    rb_define_method(ExceptionClass, "inspect", exception_inspect, 0);
     rb_define_attr(ExceptionClass, "code", 1, 0);
     rb_define_attr(ExceptionClass, "message", 1, 0);
 

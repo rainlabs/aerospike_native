@@ -5,6 +5,7 @@
 #include "record.h"
 #include "policy.h"
 #include "query.h"
+#include "batch.h"
 
 VALUE AerospikeNativeClass;
 
@@ -14,6 +15,7 @@ void Init_aerospike_native()
     define_exception();
     define_logger();
     define_query();
+    define_batch();
     define_native_key();
     define_record();
     define_operation();
