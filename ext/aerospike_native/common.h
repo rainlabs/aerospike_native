@@ -21,6 +21,9 @@ VALUE rb_hash_keys(VALUE hash);
     VALUE vTimeout;                                                        \
     Check_Type(vSettings, T_HASH);                                         \
     vTimeout = rb_hash_aref(vSettings, rb_str_new2("timeout"));            \
+    if (TYPE(vTimeout) == T_NIL) {                                         \
+        vTimeout = rb_hash_aref(vSettings, ID2SYM(rb_intern("timeout")));  \
+    }                                                                      \
     if (TYPE(vTimeout) == T_FIXNUM) {                                      \
         policy.timeout = NUM2UINT( vTimeout );                             \
     }

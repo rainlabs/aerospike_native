@@ -140,6 +140,9 @@ VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
     return vArray;
 }
 
+// TODO: implement batch read to customize bins for each key
+// VALUE batch_read(int argc, VALUE* vArgs, VALUE vSelf);
+
 /*
  * call-seq:
  *   exists(keys) -> Array
