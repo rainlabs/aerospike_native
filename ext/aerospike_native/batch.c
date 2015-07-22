@@ -46,9 +46,19 @@ bool batch_read_callback(const as_batch_read* results, uint32_t n, void* udata)
     return true;
 }
 
+/*
+ * call-seq:
+ *   get(keys) -> Array
+ *   get(keys, bins) -> Array
+ *   get(keys, bins, policy_settings) -> Array
+ *   get(keys, policy_settings) -> Array
+ *   get(keys, ...) { |record| ... } -> Nil
+ *
+ * batch get records by keys with specified bins
+ */
 VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
 {
-    VALUE vKeys, vClient, vArray;
+    VALUE vKeys, vClient, vArray, vBins;
 
     as_batch batch;
     as_policy_batch policy;
@@ -56,18 +66,39 @@ VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
     aerospike* ptr;
     as_error err;
 
-    uint32_t n = 0, idx = 0;
+    uint32_t n = 0, idx = 0, bins_idx = 0;
 
-    if (argc > 2 || argc < 1) {  // there should only be 1 or 2 arguments
-        rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
+    if (argc > 3 || argc < 1) {  // there should only be 1, 2 or 3 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..3)", argc);
     }
 
     vKeys = vArgs[0];
     Check_Type(vKeys, T_ARRAY);
-
     as_policy_batch_init(&policy);
-    if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
-        SET_POLICY(policy, vArgs[1]);
+
+    if (argc == 3) {
+        vBins = vArgs[1];
+        Check_Type(vBins, T_ARRAY);
+        bins_idx = RARRAY_LEN(vBins);
+
+        if (TYPE(vArgs[2]) != T_NIL) {
+            SET_POLICY(policy, vArgs[2]);
+        }
+    } else {
+        switch(TYPE(vArgs[1])) {
+        case T_NIL:
+            break;
+        case T_ARRAY:
+            vBins = vArgs[1];
+            bins_idx = RARRAY_LEN(vBins);
+            break;
+        case T_HASH: {
+            SET_POLICY(policy, vArgs[1]);
+            break;
+        }
+        default:
+            rb_raise(rb_eTypeError, "wrong argument type (expected Array or Hash)");
+        }
     }
 
     idx = RARRAY_LEN(vKeys);
@@ -83,12 +114,25 @@ VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
     Data_Get_Struct(vClient, aerospike, ptr);
 
     vArray = rb_ary_new();
-    if (aerospike_batch_get(ptr, &err, &policy, &batch, batch_read_callback, &vArray) != AEROSPIKE_OK) {
-        as_batch_destroy(&batch);
-        raise_aerospike_exception(err.code, err.message);
+    if (bins_idx > 0) {
+        char* sBins[bins_idx];
+        for(n = 0; n < bins_idx; n++) {
+            VALUE vEl = rb_ary_entry(vBins, n);
+            GET_STRING(vEl);
+            sBins[n] = StringValueCStr(vEl);
+        }
+        if (aerospike_batch_get_bins(ptr, &err, &policy, &batch, sBins, bins_idx, batch_read_callback, &vArray) != AEROSPIKE_OK) {
+            as_batch_destroy(&batch);
+            raise_aerospike_exception(err.code, err.message);
+        }
+    } else {
+        if (aerospike_batch_get(ptr, &err, &policy, &batch, batch_read_callback, &vArray) != AEROSPIKE_OK) {
+            as_batch_destroy(&batch);
+            raise_aerospike_exception(err.code, err.message);
+        }
     }
-    as_batch_destroy(&batch);
 
+    as_batch_destroy(&batch);
     if ( rb_block_given_p() ) {
         return Qnil;
     }
@@ -96,6 +140,15 @@ VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
     return vArray;
 }
 
+/*
+ * call-seq:
+ *   exists(keys) -> Array
+ *   exists(keys, policy_settings) -> Array
+ *   exists(keys, ...) { |record| ... } -> Nil
+ *   exists(keys, policy_settings) { |record| ... } -> Nil
+ *
+ * batch get metatdata of records (ttl, gen)
+ */
 VALUE batch_exists(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vKeys, vClient, vArray;
