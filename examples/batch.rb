@@ -13,6 +13,8 @@ def main
     keys << AerospikeNative::Key.new(namespace, set, "key5")
     keys << AerospikeNative::Key.new(namespace, set, "key26")
 
+    bins = [:number, :key]
+
     records = client.batch.get_exists(keys)
     logger.info "fetched records metadata: #{records.inspect}"
 
