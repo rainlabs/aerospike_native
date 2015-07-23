@@ -3,6 +3,7 @@
 #include "key.h"
 #include "record.h"
 #include "query.h"
+#include "batch.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -654,6 +655,14 @@ VALUE client_set_log_level(VALUE vSelf, VALUE vLevel)
     return rb_funcall(vLogger, rb_intern("set_level"), 1, vLevel);
 }
 
+VALUE client_batch(VALUE vSelf)
+{
+    VALUE vParams[1];
+
+    vParams[0] = vSelf;
+    return rb_class_new_instance(1, vParams, BatchClass);
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -668,6 +677,7 @@ void define_client()
     rb_define_method(ClientClass, "create_index", client_create_index, -1);
     rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
     rb_define_method(ClientClass, "query", client_query, 2);
+    rb_define_method(ClientClass, "batch", client_batch, 0);
 
     rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
     rb_define_singleton_method(ClientClass, "set_logger", client_set_logger, 1);
