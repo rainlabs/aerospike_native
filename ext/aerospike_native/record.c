@@ -43,15 +43,18 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
 
     vKeyParams[0] = rb_str_new2(current_key.ns);
     vKeyParams[1] = rb_str_new2(current_key.set);
+    vKeyParams[2] = Qnil;
 
-    if (current_key.valuep == NULL) {
-        vKeyParams[2] = Qnil;
-    } else {
-        char *str = current_key.value.string.value;
-        if (str == NULL) {
-            vKeyParams[2] = INT2NUM(current_key.value.integer.value);
-        } else {
-            vKeyParams[2] = rb_str_new2(str);
+    if (current_key.valuep != NULL) {
+        switch( as_val_type(current_key.valuep) ) {
+        case AS_INTEGER:
+            vKeyParams[2] = INT2NUM(as_integer_get(current_key.valuep));
+            break;
+        case AS_STRING:
+            if (current_key.value.string.len > 0) {
+                vKeyParams[2] = rb_str_new2(as_string_get(current_key.valuep));
+            }
+            break;
         }
     }
     vKeyParams[3] = rb_str_new(current_key.digest.value, AS_DIGEST_VALUE_SIZE);
@@ -69,12 +72,13 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
             rb_hash_aset(vParams[1], rb_str_new2(bin.name), Qnil);
             break;
         case AS_INTEGER:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(bin.valuep->integer.value));
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), LONG2NUM(as_integer_get(bin.valuep)));
             break;
         case AS_STRING:
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(bin.valuep->string.value));
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(as_string_get(bin.valuep)));
             break;
         case AS_BYTES: {
+//            as_bytes_get();
             VALUE vString = rb_str_new(bin.valuep->bytes.value, bin.valuep->bytes.size);
             rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_funcall(vMsgPackClass, rb_intern("unpack"), 1, vString));
             break;
