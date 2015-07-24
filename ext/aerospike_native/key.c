@@ -50,7 +50,7 @@ VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
 
     Data_Get_Struct(vSelf, as_key, ptr);
 
-    if(TYPE(vValue) == T_STRING || TYPE(vValue) == T_FIXNUM) {
+    if(TYPE(vValue) != T_NIL) {
         switch(TYPE(vValue)) {
         case T_FIXNUM:
             as_key_init_int64(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), FIX2LONG( vValue ));
@@ -58,8 +58,10 @@ VALUE key_initialize(int argc, VALUE* vArgs, VALUE vSelf)
         case T_STRING:
             as_key_init_str(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValueCStr( vValue ));
             break;
-        default:
-            rb_raise(rb_eArgError, "Expected FIXNUM or STRING as value");
+        default: {
+            VALUE vBytes = rb_funcall(vValue, rb_intern("to_msgpack"), 0);
+            as_key_init_raw(ptr, StringValueCStr( vNamespace ), StringValueCStr( vSet ), StringValuePtr(vBytes), RSTRING_LEN(vBytes));
+        }
         }
     } else {
         Check_Type(vValue, T_NIL);

@@ -29,7 +29,6 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
 {
     VALUE vKeyParams[5], vParams[4];
     VALUE vLogger;
-    VALUE vMsgPackClass;
     as_key current_key;
     as_bin bin;
     int n;
@@ -55,6 +54,11 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
                 vKeyParams[2] = rb_str_new2(as_string_get(current_key.valuep));
             }
             break;
+        case AS_BYTES: {
+            VALUE vString = rb_str_new(as_bytes_get(current_key.valuep), as_bytes_size(current_key.valuep));
+            vKeyParams[2] = rb_funcall(MsgPackClass, rb_intern("unpack"), 1, vString);
+            break;
+        }
         }
     }
     vKeyParams[3] = rb_str_new(current_key.digest.value, AS_DIGEST_VALUE_SIZE);
@@ -64,7 +68,7 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
     vParams[2] = UINT2NUM(record->gen);
     vParams[3] = UINT2NUM(record->ttl);
 
-    vMsgPackClass = rb_const_get(rb_cObject, rb_intern("MessagePack"));
+    MsgPackClass = rb_const_get(rb_cObject, rb_intern("MessagePack"));
     for(n = 0; n < record->bins.size; n++) {
         bin = record->bins.entries[n];
         switch( as_val_type(bin.valuep) ) {
@@ -78,9 +82,8 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
             rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_str_new2(as_string_get(bin.valuep)));
             break;
         case AS_BYTES: {
-//            as_bytes_get();
-            VALUE vString = rb_str_new(bin.valuep->bytes.value, bin.valuep->bytes.size);
-            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_funcall(vMsgPackClass, rb_intern("unpack"), 1, vString));
+            VALUE vString = rb_str_new(as_bytes_get(bin.valuep), as_bytes_size(bin.valuep));
+            rb_hash_aset(vParams[1], rb_str_new2(bin.name), rb_funcall(MsgPackClass, rb_intern("unpack"), 1, vString));
             break;
         }
         case AS_UNDEF:
