@@ -24,6 +24,13 @@ VALUE scan_initialize(VALUE vSelf, VALUE vClient, VALUE vNamespace, VALUE vSet)
     return vSelf;
 }
 
+/*
+ * call-seq:
+ *   select(bins) -> AerospikeNative::Scan
+ *   select(bin1, bin2, bin3, ...) -> AerospikeNative::Scan
+ *
+ * set specified bins
+ */
 VALUE scan_select(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vBins;
@@ -89,6 +96,15 @@ VALUE scan_background(VALUE vSelf, VALUE vValue)
     return vSelf;
 }
 
+/*
+ * call-seq:
+ *   exec -> records
+ *   exec(scan_policy) -> records
+ *   exec { |record| ... } -> Nil
+ *   exec(scan_policy) { |record| ... } -> Nil
+ *
+ * perform scan
+ */
 VALUE scan_exec(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vClient, vNamespace, vSet;
@@ -176,6 +192,14 @@ VALUE scan_exec(int argc, VALUE* vArgs, VALUE vSelf)
     return vArray;
 }
 
+
+/*
+ * call-seq:
+ *   info(client, scan_id) -> Hash
+ *   info(client, scan_id, scan_policy) -> Hash
+ *
+ * return scan info
+ */
 VALUE scan_info(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vClient, vHash;

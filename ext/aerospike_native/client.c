@@ -47,7 +47,7 @@ static VALUE client_allocate(VALUE klass)
  *   new() -> AerospikeNative::Client
  *   new(hosts) -> AerospikeNative::Client
  *
- * initialize new client, use \{'host' => ..., 'port' => ...\} for each hosts element
+ * initialize new client, use host' => ..., 'port' => ... for each hosts element
  */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
@@ -653,6 +653,12 @@ VALUE client_set_log_level(VALUE vSelf, VALUE vLevel)
     return rb_funcall(LoggerInstance, rb_intern("set_level"), 1, vLevel);
 }
 
+/*
+ * call-seq:
+ *   batch -> AerospikeNative::Batch
+ *
+ * Instantiate new batch
+ */
 VALUE client_batch(VALUE vSelf)
 {
     VALUE vParams[1];
@@ -661,6 +667,12 @@ VALUE client_batch(VALUE vSelf)
     return rb_class_new_instance(1, vParams, BatchClass);
 }
 
+/*
+ * call-seq:
+ *   scan(namespace, set) -> AerospikeNative::Scan
+ *
+ * Instantiate new scan
+ */
 VALUE client_scan(VALUE vSelf, VALUE vNamespace, VALUE vSet)
 {
     VALUE vParams[3];
@@ -672,6 +684,13 @@ VALUE client_scan(VALUE vSelf, VALUE vNamespace, VALUE vSet)
     return rb_class_new_instance(3, vParams, ScanClass);
 }
 
+/*
+ * call-seq:
+ *   scan_info(scan_id) -> Hash
+ *   scan_info(scan_id, scan_policy) -> Hash
+ *
+ * return scan info
+ */
 VALUE client_scan_info(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vParams[3];
