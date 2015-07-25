@@ -79,7 +79,7 @@ VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
         bins_idx = RARRAY_LEN(vBins);
 
         if (TYPE(vArgs[2]) != T_NIL) {
-            SET_POLICY(policy, vArgs[2]);
+            SET_BATCH_POLICY(policy, vArgs[2]);
         }
     } else {
         switch(TYPE(vArgs[1])) {
@@ -170,7 +170,7 @@ VALUE batch_exists(int argc, VALUE* vArgs, VALUE vSelf)
 
     as_policy_batch_init(&policy);
     if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
-        SET_POLICY(policy, vArgs[1]);
+        SET_BATCH_POLICY(policy, vArgs[1]);
     }
 
     idx = RARRAY_LEN(vKeys);

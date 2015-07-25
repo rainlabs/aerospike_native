@@ -6,6 +6,6 @@
 RUBY_EXTERN VALUE ClientClass;
 RUBY_EXTERN VALUE LoggerInstance;
 void define_client();
-void check_aerospike_client(VALUE vKey);
+void check_aerospike_client(VALUE vClient);
 
 #endif // CLIENT_H

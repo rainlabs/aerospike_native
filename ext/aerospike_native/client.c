@@ -4,6 +4,7 @@
 #include "record.h"
 #include "query.h"
 #include "batch.h"
+#include "scan.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -13,11 +14,11 @@
 VALUE ClientClass;
 VALUE LoggerInstance;
 
-void check_aerospike_client(VALUE vKey)
+void check_aerospike_client(VALUE vClient)
 {
     char sName[] = "AerospikeNative::Client";
 
-    if (strcmp(sName, rb_obj_classname(vKey)) != 0) {
+    if (strcmp(sName, rb_obj_classname(vClient)) != 0) {
         rb_raise(rb_eArgError, "Incorrect type (expected %s)", sName);
     }
 }
@@ -660,6 +661,34 @@ VALUE client_batch(VALUE vSelf)
     return rb_class_new_instance(1, vParams, BatchClass);
 }
 
+VALUE client_scan(VALUE vSelf, VALUE vNamespace, VALUE vSet)
+{
+    VALUE vParams[3];
+
+    vParams[0] = vSelf;
+    vParams[1] = vNamespace;
+    vParams[2] = vSet;
+
+    return rb_class_new_instance(3, vParams, ScanClass);
+}
+
+VALUE client_scan_info(int argc, VALUE* vArgs, VALUE vSelf)
+{
+    VALUE vParams[3];
+    if (argc > 1) {  // there should only be 1 or 2 argument
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
+    }
+
+    vParams[0] = vSelf;
+    vParams[1] = vArgs[0];
+    vParams[2] = Qnil;
+    if (argc == 2) {
+        vParams[2] = vArgs[1];
+    }
+
+    return rb_funcall2(ScanClass, rb_intern("info"), 3, vParams);
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -675,6 +704,8 @@ void define_client()
     rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
     rb_define_method(ClientClass, "query", client_query, 2);
     rb_define_method(ClientClass, "batch", client_batch, 0);
+    rb_define_method(ClientClass, "scan", client_scan, 2);
+    rb_define_method(ClientClass, "scan_info", client_scan_info, -1);
 
     LoggerInstance = rb_class_new_instance(0, NULL, LoggerClass);
     rb_cv_set(ClientClass, "@@logger", LoggerInstance);

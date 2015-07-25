@@ -6,6 +6,7 @@
 #include "policy.h"
 #include "query.h"
 #include "batch.h"
+#include "scan.h"
 
 VALUE AerospikeNativeClass;
 VALUE MsgPackClass;
@@ -17,6 +18,7 @@ void Init_aerospike_native()
     define_exception();
     define_logger();
     define_query();
+    define_scan();
     define_batch();
     define_native_key();
     define_record();
