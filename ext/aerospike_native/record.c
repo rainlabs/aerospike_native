@@ -28,7 +28,6 @@ VALUE record_initialize(VALUE vSelf, VALUE vKey, VALUE vBins, VALUE vGen, VALUE 
 VALUE rb_record_from_c(as_record* record, as_key* key)
 {
     VALUE vKeyParams[5], vParams[4];
-    VALUE vLogger;
     as_key current_key;
     as_bin bin;
     int n;
@@ -88,9 +87,8 @@ VALUE rb_record_from_c(as_record* record, as_key* key)
         }
         case AS_UNDEF:
         default:
-            vLogger = rb_cv_get(ClientClass, "@@logger");
             sprintf(msg, "unhandled val type: %d\n", as_val_type(bin.valuep));
-            rb_funcall(vLogger, rb_intern("warn"), 1, rb_str_new2(msg));
+            rb_funcall(LoggerInstance, rb_intern("warn"), 1, rb_str_new2(msg));
             break;
         }
     }

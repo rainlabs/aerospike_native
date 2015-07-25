@@ -11,6 +11,7 @@
 #include <aerospike/aerospike_query.h>
 
 VALUE ClientClass;
+VALUE LoggerInstance;
 
 void check_aerospike_client(VALUE vKey)
 {
@@ -641,18 +642,14 @@ VALUE client_query(VALUE vSelf, VALUE vNamespace, VALUE vSet)
 
 VALUE client_set_logger(VALUE vSelf, VALUE vNewLogger)
 {
-    VALUE vLogger = rb_cv_get(vSelf, "@@logger");
-    rb_iv_set(vLogger, "@internal", vNewLogger);
-
-    return vLogger;
+    rb_iv_set(LoggerInstance, "@internal", vNewLogger);
+    return LoggerInstance;
 }
 
 VALUE client_set_log_level(VALUE vSelf, VALUE vLevel)
 {
-    VALUE vLogger = rb_cv_get(vSelf, "@@logger");
     Check_Type(vLevel, T_SYMBOL);
-
-    return rb_funcall(vLogger, rb_intern("set_level"), 1, vLevel);
+    return rb_funcall(LoggerInstance, rb_intern("set_level"), 1, vLevel);
 }
 
 VALUE client_batch(VALUE vSelf)
@@ -679,7 +676,8 @@ void define_client()
     rb_define_method(ClientClass, "query", client_query, 2);
     rb_define_method(ClientClass, "batch", client_batch, 0);
 
-    rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
+    LoggerInstance = rb_class_new_instance(0, NULL, LoggerClass);
+    rb_cv_set(ClientClass, "@@logger", LoggerInstance);
     rb_define_singleton_method(ClientClass, "set_logger", client_set_logger, 1);
     rb_define_singleton_method(ClientClass, "set_log_level", client_set_log_level, 1);
 }
