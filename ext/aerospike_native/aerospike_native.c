@@ -6,15 +6,19 @@
 #include "policy.h"
 #include "query.h"
 #include "batch.h"
+#include "scan.h"
 
 VALUE AerospikeNativeClass;
+VALUE MsgPackClass;
 
 void Init_aerospike_native()
 {
+    MsgPackClass = rb_const_get(rb_cObject, rb_intern("MessagePack"));
     AerospikeNativeClass = rb_define_module("AerospikeNative");
     define_exception();
     define_logger();
     define_query();
+    define_scan();
     define_batch();
     define_native_key();
     define_record();

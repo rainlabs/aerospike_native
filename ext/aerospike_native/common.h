@@ -180,5 +180,29 @@ VALUE rb_hash_keys(VALUE hash);
         policy.check_bounds = RTEST(vCheckBounds);                         \
     }
 
+#define SET_SCAN_POLICY(policy, vSettings)                                 \
+    VALUE vFailOnClusterChange;                                            \
+    SET_POLICY(policy, vSettings);                                         \
+    vFailOnClusterChange = rb_hash_aref(vSettings, rb_str_new2("fail_on_cluster_change")); \
+    if (TYPE(vFailOnClusterChange) != T_NIL) {                             \
+        policy.fail_on_cluster_change = RTEST(vFailOnClusterChange);       \
+    }
+
+#define SET_BATCH_POLICY(policy, vSettings)                                \
+    VALUE vConcurrent, vAllowInline, vUseBatchDirect;                      \
+    SET_POLICY(policy, vSettings);                                         \
+    vConcurrent = rb_hash_aref(vSettings, rb_str_new2("concurrent"));      \
+    if (TYPE(vConcurrent) != T_NIL) {                                      \
+        policy.concurrent = RTEST(vConcurrent);                            \
+    }                                                                      \
+    vUseBatchDirect = rb_hash_aref(vSettings, rb_str_new2("use_batch_direct"));\
+    if (TYPE(vUseBatchDirect) != T_NIL) {                                  \
+        policy.use_batch_direct = RTEST(vUseBatchDirect);                  \
+    }                                                                      \
+    vAllowInline = rb_hash_aref(vSettings, rb_str_new2("allow_inline"));   \
+    if (TYPE(vAllowInline) != T_NIL) {                                     \
+        policy.allow_inline = RTEST(vAllowInline);                         \
+    }
+
 #endif // COMMON_H
 

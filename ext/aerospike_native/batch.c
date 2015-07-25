@@ -15,10 +15,7 @@ VALUE batch_initialize(VALUE vSelf, VALUE vClient)
 bool batch_read_callback(const as_batch_read* results, uint32_t n, void* udata)
 {
     uint32_t i = 0;
-    VALUE vLogger;
     char sMsg[1000];
-
-    vLogger = rb_cv_get(ClientClass, "@@logger");
 
     for(i = 0; i < n; i++) {
         switch(results[i].result) {
@@ -35,11 +32,11 @@ bool batch_read_callback(const as_batch_read* results, uint32_t n, void* udata)
         }
         case AEROSPIKE_ERR_RECORD_NOT_FOUND:
             sprintf(sMsg, "Aerospike batch read record not found %d", i);
-            rb_funcall(vLogger, rb_intern("warn"), 1, rb_str_new2(sMsg));
+            rb_funcall(LoggerInstance, rb_intern("warn"), 1, rb_str_new2(sMsg));
             break;
         default:
             sprintf(sMsg, "Aerospike batch read error %d", results[i].result);
-            rb_funcall(vLogger, rb_intern("error"), 1, rb_str_new2(sMsg));
+            rb_funcall(LoggerInstance, rb_intern("error"), 1, rb_str_new2(sMsg));
         }
     }
 
@@ -82,7 +79,7 @@ VALUE batch_get(int argc, VALUE* vArgs, VALUE vSelf)
         bins_idx = RARRAY_LEN(vBins);
 
         if (TYPE(vArgs[2]) != T_NIL) {
-            SET_POLICY(policy, vArgs[2]);
+            SET_BATCH_POLICY(policy, vArgs[2]);
         }
     } else {
         switch(TYPE(vArgs[1])) {
@@ -173,7 +170,7 @@ VALUE batch_exists(int argc, VALUE* vArgs, VALUE vSelf)
 
     as_policy_batch_init(&policy);
     if (argc == 2 && TYPE(vArgs[1]) != T_NIL) {
-        SET_POLICY(policy, vArgs[1]);
+        SET_BATCH_POLICY(policy, vArgs[1]);
     }
 
     idx = RARRAY_LEN(vKeys);

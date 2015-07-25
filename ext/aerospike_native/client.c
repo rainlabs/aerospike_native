@@ -4,6 +4,7 @@
 #include "record.h"
 #include "query.h"
 #include "batch.h"
+#include "scan.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -11,12 +12,13 @@
 #include <aerospike/aerospike_query.h>
 
 VALUE ClientClass;
+VALUE LoggerInstance;
 
-void check_aerospike_client(VALUE vKey)
+void check_aerospike_client(VALUE vClient)
 {
     char sName[] = "AerospikeNative::Client";
 
-    if (strcmp(sName, rb_obj_classname(vKey)) != 0) {
+    if (strcmp(sName, rb_obj_classname(vClient)) != 0) {
         rb_raise(rb_eArgError, "Incorrect type (expected %s)", sName);
     }
 }
@@ -45,7 +47,7 @@ static VALUE client_allocate(VALUE klass)
  *   new() -> AerospikeNative::Client
  *   new(hosts) -> AerospikeNative::Client
  *
- * initialize new client, use \{'host' => ..., 'port' => ...\} for each hosts element
+ * initialize new client, use host' => ..., 'port' => ... for each hosts element
  */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
@@ -641,26 +643,69 @@ VALUE client_query(VALUE vSelf, VALUE vNamespace, VALUE vSet)
 
 VALUE client_set_logger(VALUE vSelf, VALUE vNewLogger)
 {
-    VALUE vLogger = rb_cv_get(vSelf, "@@logger");
-    rb_iv_set(vLogger, "@internal", vNewLogger);
-
-    return vLogger;
+    rb_iv_set(LoggerInstance, "@internal", vNewLogger);
+    return LoggerInstance;
 }
 
 VALUE client_set_log_level(VALUE vSelf, VALUE vLevel)
 {
-    VALUE vLogger = rb_cv_get(vSelf, "@@logger");
     Check_Type(vLevel, T_SYMBOL);
-
-    return rb_funcall(vLogger, rb_intern("set_level"), 1, vLevel);
+    return rb_funcall(LoggerInstance, rb_intern("set_level"), 1, vLevel);
 }
 
+/*
+ * call-seq:
+ *   batch -> AerospikeNative::Batch
+ *
+ * Instantiate new batch
+ */
 VALUE client_batch(VALUE vSelf)
 {
     VALUE vParams[1];
 
     vParams[0] = vSelf;
     return rb_class_new_instance(1, vParams, BatchClass);
+}
+
+/*
+ * call-seq:
+ *   scan(namespace, set) -> AerospikeNative::Scan
+ *
+ * Instantiate new scan
+ */
+VALUE client_scan(VALUE vSelf, VALUE vNamespace, VALUE vSet)
+{
+    VALUE vParams[3];
+
+    vParams[0] = vSelf;
+    vParams[1] = vNamespace;
+    vParams[2] = vSet;
+
+    return rb_class_new_instance(3, vParams, ScanClass);
+}
+
+/*
+ * call-seq:
+ *   scan_info(scan_id) -> Hash
+ *   scan_info(scan_id, scan_policy) -> Hash
+ *
+ * return scan info
+ */
+VALUE client_scan_info(int argc, VALUE* vArgs, VALUE vSelf)
+{
+    VALUE vParams[3];
+    if (argc > 1) {  // there should only be 1 or 2 argument
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..2)", argc);
+    }
+
+    vParams[0] = vSelf;
+    vParams[1] = vArgs[0];
+    vParams[2] = Qnil;
+    if (argc == 2) {
+        vParams[2] = vArgs[1];
+    }
+
+    return rb_funcall2(ScanClass, rb_intern("info"), 3, vParams);
 }
 
 void define_client()
@@ -678,8 +723,11 @@ void define_client()
     rb_define_method(ClientClass, "drop_index", client_drop_index, -1);
     rb_define_method(ClientClass, "query", client_query, 2);
     rb_define_method(ClientClass, "batch", client_batch, 0);
+    rb_define_method(ClientClass, "scan", client_scan, 2);
+    rb_define_method(ClientClass, "scan_info", client_scan_info, -1);
 
-    rb_cv_set(ClientClass, "@@logger", rb_class_new_instance(0, NULL, LoggerClass));
+    LoggerInstance = rb_class_new_instance(0, NULL, LoggerClass);
+    rb_cv_set(ClientClass, "@@logger", LoggerInstance);
     rb_define_singleton_method(ClientClass, "set_logger", client_set_logger, 1);
     rb_define_singleton_method(ClientClass, "set_log_level", client_set_log_level, 1);
 }

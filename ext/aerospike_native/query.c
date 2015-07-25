@@ -18,6 +18,13 @@ VALUE query_initialize(VALUE vSelf, VALUE vClient, VALUE vNamespace, VALUE vSet)
     return vSelf;
 }
 
+/*
+ * call-seq:
+ *   select(bins) -> AerospikeNative::Query
+ *   select(bin1, bin2, bin3, ...) -> AerospikeNative::Query
+ *
+ * set specified bins
+ */
 VALUE query_select(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vBins;

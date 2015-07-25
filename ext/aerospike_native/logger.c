@@ -8,15 +8,14 @@ bool aerospike_log_callback(as_log_level level, const char *func, const char *fi
 {
     char msg[1024] = {0};
     va_list ap;
-    VALUE vLogger = rb_cv_get(ClientClass, "@@logger");
 
     va_start(ap, fmt);
     vsnprintf(msg, 1024, fmt, ap);
     msg[1023] = '\0';
     va_end(ap);
 
-    if(TYPE(vLogger) != T_NIL) {
-        rb_funcall(vLogger, rb_intern("write"), 2, INT2FIX(level), rb_str_new2(msg));
+    if(TYPE(LoggerInstance) != T_NIL) {
+        rb_funcall(LoggerInstance, rb_intern("write"), 2, INT2FIX(level), rb_str_new2(msg));
     }
 
     return true;

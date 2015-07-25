@@ -1,4 +1,8 @@
-require './common/common'
+require_relative './common/common'
+
+def keys(namespace, set, *values)
+  values.map{ |value| AerospikeNative::Key.new(namespace, set, value) }
+end
 
 def main
   Common::Common.run_example do |client, namespace, set, logger|
@@ -7,20 +11,16 @@ def main
       client.put(AerospikeNative::Key.new(namespace, set, "key#{i}"), {'number' => i, 'key' => 'string', 'testbin' => i.to_s})
     end
 
-    keys = []
-    keys << AerospikeNative::Key.new(namespace, set, 1)
-    keys << AerospikeNative::Key.new(namespace, set, 10)
-    keys << AerospikeNative::Key.new(namespace, set, "key5")
-    keys << AerospikeNative::Key.new(namespace, set, "key26")
+    bins = [:number, :key]
 
-    records = client.batch.get_exists(keys)
+    records = client.batch.exists(keys(namespace, set, 1, 10, "key5", "key26"))
     logger.info "fetched records metadata: #{records.inspect}"
 
-    records = client.batch.get(keys)
-    logger.info "fetched records with specified bins: #{records.inspect}"
-
-    records = client.batch.get(keys, bins)
+    records = client.batch.get(keys(namespace, set, 1, 10, "key5", "key26"))
     logger.info "fetched records with all bins: #{records.inspect}"
+
+    records = client.batch.get(keys(namespace, set, 1, 10, "key5", "key26"), bins)
+    logger.info "fetched records with specified bins: #{records.inspect}"
   end
 end
 

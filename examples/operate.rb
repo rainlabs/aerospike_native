@@ -1,4 +1,4 @@
-require './common/common'
+require_relative './common/common'
 
 def main
   Common::Common.run_example do |client, namespace, set, logger|

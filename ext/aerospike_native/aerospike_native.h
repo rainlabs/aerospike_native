@@ -6,6 +6,7 @@
 #include <aerospike/aerospike_index.h>
 
 RUBY_EXTERN VALUE AerospikeNativeClass;
+RUBY_EXTERN VALUE MsgPackClass;
 
 enum IndexType {
     INDEX_STRING = AS_INDEX_STRING,
