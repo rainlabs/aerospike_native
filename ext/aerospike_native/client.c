@@ -79,8 +79,8 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 
     as_config_init(&config);
 //    printf("lua dir: %s\n", config.lua.system_path);
-    strcpy(config.lua.system_path, "/home/rain/soft/aerospike-server/share/udf/lua");
-    strcpy(config.lua.user_path, "/home/rain/soft/aerospike-server/var/udf/lua");
+//    strcpy(config.lua.system_path, "/home/rain/soft/aerospike-server/share/udf/lua");
+//    strcpy(config.lua.user_path, "/home/rain/soft/aerospike-server/var/udf/lua");
 
     if (TYPE(ary) == T_ARRAY) {
         idx = RARRAY_LEN(ary);
