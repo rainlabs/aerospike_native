@@ -5,6 +5,7 @@
 #include "query.h"
 #include "batch.h"
 #include "scan.h"
+#include "udf.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -77,6 +78,9 @@ VALUE client_initialize(int argc, VALUE* argv, VALUE self)
     Data_Get_Struct(self, aerospike, ptr);
 
     as_config_init(&config);
+//    printf("lua dir: %s\n", config.lua.system_path);
+    strcpy(config.lua.system_path, "/home/rain/soft/aerospike-server/share/udf/lua");
+    strcpy(config.lua.user_path, "/home/rain/soft/aerospike-server/var/udf/lua");
 
     if (TYPE(ary) == T_ARRAY) {
         idx = RARRAY_LEN(ary);
@@ -708,6 +712,14 @@ VALUE client_scan_info(int argc, VALUE* vArgs, VALUE vSelf)
     return rb_funcall2(ScanClass, rb_intern("info"), 3, vParams);
 }
 
+VALUE client_udf(VALUE vSelf)
+{
+    VALUE vParams[1];
+    vParams[0] = vSelf;
+
+    return rb_class_new_instance(1, vParams, UdfClass);
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -725,6 +737,7 @@ void define_client()
     rb_define_method(ClientClass, "batch", client_batch, 0);
     rb_define_method(ClientClass, "scan", client_scan, 2);
     rb_define_method(ClientClass, "scan_info", client_scan_info, -1);
+    rb_define_method(ClientClass, "udf", client_udf, 0);
 
     LoggerInstance = rb_class_new_instance(0, NULL, LoggerClass);
     rb_cv_set(ClientClass, "@@logger", LoggerInstance);

@@ -7,6 +7,7 @@
 #include "query.h"
 #include "batch.h"
 #include "scan.h"
+#include "udf.h"
 
 VALUE AerospikeNativeClass;
 VALUE MsgPackClass;
@@ -17,6 +18,7 @@ void Init_aerospike_native()
     AerospikeNativeClass = rb_define_module("AerospikeNative");
     define_exception();
     define_logger();
+    define_udf();
     define_query();
     define_scan();
     define_batch();
