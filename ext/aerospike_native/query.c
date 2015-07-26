@@ -191,6 +191,22 @@ bool query_callback(const as_val *value, void *udata) {
         }
         break;
     }
+    case AS_NIL:
+        vRecord = Qnil;
+        break;
+    case AS_BOOLEAN: {
+        as_integer* integer = as_integer_fromval(value);
+        if (integer != NULL) {
+            vRecord = LONG2NUM( as_integer_get(integer) );
+        }
+        break;
+    }
+    case AS_LIST:
+    case AS_MAP:
+    case AS_PAIR:
+    case AS_UNDEF:
+    default:
+        break;
     }
 
     if ( rb_block_given_p() ) {
