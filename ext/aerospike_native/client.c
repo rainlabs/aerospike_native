@@ -52,35 +52,76 @@ static VALUE client_allocate(VALUE klass)
  */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
-    VALUE ary = Qnil;
+    VALUE ary = Qnil, vSettings = Qnil;
     aerospike *ptr;
     as_config config;
     as_error err;
     long idx = 0, n = 0;
 
-    if (argc > 1) {  // there should only be 0 or 1 arguments
-        rb_raise(rb_eArgError, "wrong number of arguments (%d for 0..1)", argc);
+    if (argc > 2) {  // there should only be 0, 1 or 2 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 0..2)", argc);
     }
 
     if (argc == 1) {
         ary = argv[0];
     }
 
-    switch (TYPE(ary)) {
+    switch (TYPE(argv[0])) {
     case T_NIL:
     case T_ARRAY:
+        ary = argv[0];
+        break;
+    case T_HASH:
+        vSettings = argv[0];
+        if (argc > 1) {
+            rb_raise(rb_eArgError, "wrong number of arguments (detected settings hash as first parameter)", argc);
+        }
         break;
     default:
         /* raise exception */
         Check_Type(ary, T_ARRAY);
         break;
     }
+
+    if(argc == 2) {
+        switch (TYPE(argv[1])) {
+        case T_NIL:
+        case T_HASH:
+            vSettings = argv[1];
+            break;
+        default:
+            /* raise exception */
+            Check_Type(ary, T_HASH);
+            break;
+        }
+    }
+
     Data_Get_Struct(self, aerospike, ptr);
 
     as_config_init(&config);
-//    printf("lua dir: %s\n", config.lua.system_path);
-//    strcpy(config.lua.system_path, "/home/rain/soft/aerospike-server/share/udf/lua");
-//    strcpy(config.lua.user_path, "/home/rain/soft/aerospike-server/var/udf/lua");
+    if (TYPE(vSettings) != T_NIL) {
+        VALUE vLua = rb_hash_aref(vSettings, rb_str_new2("lua"));
+        if (TYPE(vLua) == T_NIL) {
+            vLua = rb_hash_aref(vSettings, ID2SYM( rb_intern("lua") ));
+        }
+        if (TYPE(vLua) == T_HASH) {
+            VALUE vSystemPath = rb_hash_aref(vLua, rb_str_new2("system_path"));
+            VALUE vUserPath = rb_hash_aref(vLua, rb_str_new2("user_path"));
+            if (TYPE(vSystemPath) == T_NIL) {
+                vSystemPath = rb_hash_aref(vLua, ID2SYM( rb_intern("system_path") ));
+            }
+            if (TYPE(vUserPath) == T_NIL) {
+                vUserPath = rb_hash_aref(vLua, ID2SYM( rb_intern("user_path") ));
+            }
+
+            if (TYPE(vSystemPath) == T_STRING) {
+                strcpy(config.lua.system_path, StringValueCStr(vSystemPath));
+            }
+            if (TYPE(vUserPath) == T_STRING) {
+                strcpy(config.lua.user_path, StringValueCStr(vUserPath));
+            }
+        }
+    }
 
     if (TYPE(ary) == T_ARRAY) {
         idx = RARRAY_LEN(ary);
