@@ -27,11 +27,11 @@ module Common
       end
 
       def udf_system_path
-        '../../ext/aerospike_native/aerospike-client-c/modules/lua-core/src'
+        './ext/aerospike_native/aerospike-client-c/modules/lua-core/src'
       end
 
       def udf_user_path
-        '../lua'
+        './examples/lua'
       end
 
       def run_example
