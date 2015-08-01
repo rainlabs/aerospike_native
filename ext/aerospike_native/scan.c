@@ -5,12 +5,6 @@
 
 VALUE ScanClass;
 
-static void scan_deallocate(void *p)
-{
-    as_scan* ptr = p;
-    as_scan_destroy(ptr);
-}
-
 VALUE scan_initialize(VALUE vSelf, VALUE vClient, VALUE vNamespace, VALUE vSet)
 {
     Check_Type(vNamespace, T_STRING);
@@ -90,9 +84,21 @@ VALUE scan_no_bins(VALUE vSelf, VALUE vValue)
     return vSelf;
 }
 
-VALUE scan_background(VALUE vSelf, VALUE vValue)
+VALUE scan_apply(int argc, VALUE* vArgs, VALUE vSelf)
 {
-    rb_iv_set(vSelf, "@background", vValue);
+    if (argc < 2 || argc > 3) {  // there should only be 2 or 3 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
+    }
+
+    Check_Type(vArgs[0], T_STRING);
+    Check_Type(vArgs[1], T_STRING);
+    rb_iv_set(vSelf, "@udf_module", vArgs[0]);
+    rb_iv_set(vSelf, "@udf_function", vArgs[1]);
+
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        Check_Type(vArgs[2], T_ARRAY);
+    }
+
     return vSelf;
 }
 
@@ -109,7 +115,7 @@ VALUE scan_exec(int argc, VALUE* vArgs, VALUE vSelf)
 {
     VALUE vClient, vNamespace, vSet;
     VALUE vArray;
-    VALUE vConcurrent, vPercent, vPriority, vBins, vNoBins, vBackground;
+    VALUE vConcurrent, vPercent, vPriority, vBins, vNoBins, vUdfModule;
     as_scan scan;
     as_policy_scan policy;
     as_error err;
@@ -135,7 +141,6 @@ VALUE scan_exec(int argc, VALUE* vArgs, VALUE vSelf)
     vPriority = rb_iv_get(vSelf, "@priority");
     vNoBins = rb_iv_get(vSelf, "@no_bins");
     vBins = rb_iv_get(vSelf, "@select_bins");
-    vBackground = rb_iv_get(vSelf, "@background");
     as_scan_init(&scan, StringValueCStr(vNamespace), StringValueCStr(vSet));
 
     if (TYPE(vPercent) == T_FIXNUM) {
@@ -154,16 +159,26 @@ VALUE scan_exec(int argc, VALUE* vArgs, VALUE vSelf)
         as_scan_set_nobins(&scan, RTEST(vNoBins));
     }
 
-    if (TYPE(vBackground) != T_NIL) {
-        is_background = RTEST(vBackground);
-    }
-
     if (TYPE(vBins) == T_ARRAY && (idx = RARRAY_LEN(vBins)) > 0) {
         as_scan_select_inita(&scan, idx);
         for(n = 0; n < idx; n++) {
             VALUE vEntry = rb_ary_entry(vBins, n);
             as_scan_select(&scan, StringValueCStr(vEntry));
         }
+    }
+
+    vUdfModule = rb_iv_get(vSelf, "@udf_module");
+    switch(TYPE(vUdfModule)) {
+    case T_NIL:
+        break;
+    case T_STRING: {
+        VALUE vUdfFunction = rb_iv_get(vSelf, "@udf_function");
+        as_scan_apply_each(&scan, StringValueCStr(vUdfModule), StringValueCStr(vUdfFunction), NULL);
+        is_background = true;
+        break;
+    }
+    default:
+        rb_raise(rb_eTypeError, "wrong argument type for udf module (expected String or Nil)");
     }
 
     Data_Get_Struct(vClient, aerospike, ptr);
@@ -216,8 +231,8 @@ VALUE scan_info(int argc, VALUE* vArgs, VALUE vSelf)
     vClient = vArgs[0];
     check_aerospike_client(vClient);
 
-    Check_Type(vArgs[1], T_FIXNUM);
-    scan_id = FIX2ULONG(vArgs[1]);
+//    Check_Type(vArgs[1], T_BIGNUM);
+    scan_id = NUM2ULONG(vArgs[1]);
 
     as_policy_scan_init(&policy);
     if(argc == 3 && TYPE(vArgs[2]) != T_NIL) {
@@ -248,7 +263,7 @@ void define_scan()
     rb_define_method(ScanClass, "set_percent", scan_percent, 1);
     rb_define_method(ScanClass, "set_priority", scan_priority, 1);
     rb_define_method(ScanClass, "set_no_bins", scan_no_bins, 1);
-//    rb_define_method(ScanClass, "set_background", scan_background, 1);
+    rb_define_method(ScanClass, "apply", scan_apply, -1);
     rb_define_singleton_method(ScanClass, "info", scan_info, -1);
 
     rb_define_attr(ScanClass, "client", 1, 0);
@@ -257,7 +272,9 @@ void define_scan()
     rb_define_attr(ScanClass, "percent", 1, 0);
     rb_define_attr(ScanClass, "priority", 1, 0);
     rb_define_attr(ScanClass, "no_bins", 1, 0);
-    rb_define_attr(ScanClass, "background", 1, 0);
+    rb_define_attr(QueryClass, "udf_module", 1, 0);
+    rb_define_attr(QueryClass, "udf_function", 1, 0);
+    rb_define_attr(QueryClass, "udf_arglist", 1, 0);
 
     rb_define_const(ScanClass, "STATUS_UNDEFINED", INT2FIX(AS_SCAN_STATUS_UNDEF));
     rb_define_const(ScanClass, "STATUS_INPROGRESS", INT2FIX(AS_SCAN_STATUS_INPROGRESS));

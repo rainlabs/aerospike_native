@@ -143,26 +143,77 @@ VALUE query_where(VALUE vSelf, VALUE vHash)
     return vSelf;
 }
 
+VALUE query_apply(int argc, VALUE* vArgs, VALUE vSelf)
+{
+    if (argc < 2 || argc > 3) {  // there should only be 2 or 3 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 2..3)", argc);
+    }
+
+    Check_Type(vArgs[0], T_STRING);
+    Check_Type(vArgs[1], T_STRING);
+    rb_iv_set(vSelf, "@udf_module", vArgs[0]);
+    rb_iv_set(vSelf, "@udf_function", vArgs[1]);
+
+    if (argc == 3 && TYPE(vArgs[2]) != T_NIL) {
+        Check_Type(vArgs[2], T_ARRAY);
+    }
+
+    return vSelf;
+}
+
 bool query_callback(const as_val *value, void *udata) {
     VALUE vRecord;
-    as_record *record;
 
     if (value == NULL) {
         // query is complete
         return true;
     }
 
-    record = as_record_fromval(value);
-
-    if (record != NULL) {
-        vRecord = rb_record_from_c(record, NULL);
-
-        if ( rb_block_given_p() ) {
-            rb_yield(vRecord);
-        } else {
-            VALUE *vArray = (VALUE*) udata;
-            rb_ary_push(*vArray, vRecord);
+    switch(as_val_type(value)) {
+    case AS_REC: {
+        as_record* record = as_record_fromval(value);
+        if (record != NULL) {
+            vRecord = rb_record_from_c(record, NULL);
         }
+        break;
+    }
+    case AS_INTEGER: {
+        as_integer* integer = as_integer_fromval(value);
+        if (integer != NULL) {
+            vRecord = LONG2NUM( as_integer_get(integer) );
+        }
+        break;
+    }
+    case AS_STRING: {
+        as_string* string = as_string_fromval(value);
+        if (string != NULL) {
+            vRecord = LONG2NUM( as_string_get(string) );
+        }
+        break;
+    }
+    case AS_NIL:
+        vRecord = Qnil;
+        break;
+    case AS_BOOLEAN: {
+        as_integer* integer = as_integer_fromval(value);
+        if (integer != NULL) {
+            vRecord = LONG2NUM( as_integer_get(integer) );
+        }
+        break;
+    }
+    case AS_LIST:
+    case AS_MAP:
+    case AS_PAIR:
+    case AS_UNDEF:
+    default:
+        break;
+    }
+
+    if ( rb_block_given_p() ) {
+        rb_yield(vRecord);
+    } else {
+        VALUE *vArray = (VALUE*) udata;
+        rb_ary_push(*vArray, vRecord);
     }
 
     return true;
@@ -175,6 +226,7 @@ VALUE query_exec(int argc, VALUE* vArgs, VALUE vSelf)
     VALUE vArray;
     VALUE vClient;
     VALUE vWhere, vSelect, vOrder;
+    VALUE vUdfModule;
     VALUE vWhereKeys, vOrderKeys;
 
     aerospike *ptr;
@@ -293,6 +345,19 @@ VALUE query_exec(int argc, VALUE* vArgs, VALUE vSelf)
         }
     }
 
+    vUdfModule = rb_iv_get(vSelf, "@udf_module");
+    switch(TYPE(vUdfModule)) {
+    case T_NIL:
+        break;
+    case T_STRING: {
+        VALUE vUdfFunction = rb_iv_get(vSelf, "@udf_function");
+        as_query_apply(&query, StringValueCStr(vUdfModule), StringValueCStr(vUdfFunction), NULL);
+        break;
+    }
+    default:
+        rb_raise(rb_eTypeError, "wrong argument type for udf module (expected String or Nil)");
+    }
+
     vArray = rb_ary_new();
     if (aerospike_query_foreach(ptr, &err, &policy, &query, query_callback, &vArray) != AEROSPIKE_OK) {
         as_query_destroy(&query);
@@ -314,6 +379,7 @@ void define_query()
     rb_define_method(QueryClass, "select", query_select, -1);
     rb_define_method(QueryClass, "order", query_order, 1);
     rb_define_method(QueryClass, "where", query_where, 1);
+    rb_define_method(QueryClass, "apply", query_apply, -1);
     rb_define_method(QueryClass, "exec", query_exec, -1);
 
     rb_define_attr(QueryClass, "client", 1, 0);
@@ -322,4 +388,8 @@ void define_query()
     rb_define_attr(QueryClass, "select_bins", 1, 0);
     rb_define_attr(QueryClass, "where_bins", 1, 0);
     rb_define_attr(QueryClass, "order_bins", 1, 0);
+
+    rb_define_attr(QueryClass, "udf_module", 1, 0);
+    rb_define_attr(QueryClass, "udf_function", 1, 0);
+    rb_define_attr(QueryClass, "udf_arglist", 1, 0);
 }

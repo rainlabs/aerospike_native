@@ -5,6 +5,7 @@
 #include "query.h"
 #include "batch.h"
 #include "scan.h"
+#include "udf.h"
 #include <aerospike/as_key.h>
 #include <aerospike/as_operations.h>
 #include <aerospike/aerospike_key.h>
@@ -51,32 +52,76 @@ static VALUE client_allocate(VALUE klass)
  */
 VALUE client_initialize(int argc, VALUE* argv, VALUE self)
 {
-    VALUE ary = Qnil;
+    VALUE ary = Qnil, vSettings = Qnil;
     aerospike *ptr;
     as_config config;
     as_error err;
     long idx = 0, n = 0;
 
-    if (argc > 1) {  // there should only be 0 or 1 arguments
-        rb_raise(rb_eArgError, "wrong number of arguments (%d for 0..1)", argc);
+    if (argc > 2) {  // there should only be 0, 1 or 2 arguments
+        rb_raise(rb_eArgError, "wrong number of arguments (%d for 0..2)", argc);
     }
 
     if (argc == 1) {
         ary = argv[0];
     }
 
-    switch (TYPE(ary)) {
+    switch (TYPE(argv[0])) {
     case T_NIL:
     case T_ARRAY:
+        ary = argv[0];
+        break;
+    case T_HASH:
+        vSettings = argv[0];
+        if (argc > 1) {
+            rb_raise(rb_eArgError, "wrong number of arguments (detected settings hash as first parameter)", argc);
+        }
         break;
     default:
         /* raise exception */
         Check_Type(ary, T_ARRAY);
         break;
     }
+
+    if(argc == 2) {
+        switch (TYPE(argv[1])) {
+        case T_NIL:
+        case T_HASH:
+            vSettings = argv[1];
+            break;
+        default:
+            /* raise exception */
+            Check_Type(ary, T_HASH);
+            break;
+        }
+    }
+
     Data_Get_Struct(self, aerospike, ptr);
 
     as_config_init(&config);
+    if (TYPE(vSettings) != T_NIL) {
+        VALUE vLua = rb_hash_aref(vSettings, rb_str_new2("lua"));
+        if (TYPE(vLua) == T_NIL) {
+            vLua = rb_hash_aref(vSettings, ID2SYM( rb_intern("lua") ));
+        }
+        if (TYPE(vLua) == T_HASH) {
+            VALUE vSystemPath = rb_hash_aref(vLua, rb_str_new2("system_path"));
+            VALUE vUserPath = rb_hash_aref(vLua, rb_str_new2("user_path"));
+            if (TYPE(vSystemPath) == T_NIL) {
+                vSystemPath = rb_hash_aref(vLua, ID2SYM( rb_intern("system_path") ));
+            }
+            if (TYPE(vUserPath) == T_NIL) {
+                vUserPath = rb_hash_aref(vLua, ID2SYM( rb_intern("user_path") ));
+            }
+
+            if (TYPE(vSystemPath) == T_STRING) {
+                strcpy(config.lua.system_path, StringValueCStr(vSystemPath));
+            }
+            if (TYPE(vUserPath) == T_STRING) {
+                strcpy(config.lua.user_path, StringValueCStr(vUserPath));
+            }
+        }
+    }
 
     if (TYPE(ary) == T_ARRAY) {
         idx = RARRAY_LEN(ary);
@@ -708,6 +753,14 @@ VALUE client_scan_info(int argc, VALUE* vArgs, VALUE vSelf)
     return rb_funcall2(ScanClass, rb_intern("info"), 3, vParams);
 }
 
+VALUE client_udf(VALUE vSelf)
+{
+    VALUE vParams[1];
+    vParams[0] = vSelf;
+
+    return rb_class_new_instance(1, vParams, UdfClass);
+}
+
 void define_client()
 {
     ClientClass = rb_define_class_under(AerospikeNativeClass, "Client", rb_cObject);
@@ -725,6 +778,7 @@ void define_client()
     rb_define_method(ClientClass, "batch", client_batch, 0);
     rb_define_method(ClientClass, "scan", client_scan, 2);
     rb_define_method(ClientClass, "scan_info", client_scan_info, -1);
+    rb_define_method(ClientClass, "udf", client_udf, 0);
 
     LoggerInstance = rb_class_new_instance(0, NULL, LoggerClass);
     rb_cv_set(ClientClass, "@@logger", LoggerInstance);

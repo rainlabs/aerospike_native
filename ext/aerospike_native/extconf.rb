@@ -10,7 +10,7 @@ have_library('crypto')
 
 headers_path = File.expand_path(File.join(File.dirname(__FILE__), "include"))
 lib_path = File.expand_path(File.join(File.dirname(__FILE__), "lib"))
-aerospike_client_c_dir = File.expand_path(File.join(File.dirname(__FILE__), "aerospike-client-c"))
+aerospike_client_c_dir = "aerospike-client-c" #File.expand_path(File.join(File.dirname(__FILE__), "aerospike-client-c"))
 `git clone https://github.com/aerospike/aerospike-client-c.git`
 Dir.chdir(aerospike_client_c_dir) do
   `git reset --hard f4aa41fc237fca3e25110d15e72b7735262e6653`
