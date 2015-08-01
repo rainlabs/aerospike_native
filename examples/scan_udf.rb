@@ -15,7 +15,7 @@ def main
     logger.info "user script already added"
 
     logger.info "performing update scan..."
-    scan_id = client.scan(namespace, set).apply("test_udf", "add_testbin_to_number").set_background(true).exec
+    scan_id = client.scan(namespace, set).apply("test_udf", "add_testbin_to_number").exec
     loop do
       info = client.scan_info(scan_id)
       logger.info "scan info: #{info}"

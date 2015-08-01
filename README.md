@@ -26,7 +26,10 @@ Or install it yourself as:
 * `remove` command
 * `select` command
 * `exixts?` command
-* `query` command (where and select support)
+* `query` command (where, select and udf support)
+* `scan` command (select and udf support)
+* `batch` command (get and exists support)
+* `udf` command (udf management: put, remove, list, get)
 * Supported bytes type for non-native object types(string or fixnum) via [msgpack](https://github.com/msgpack/msgpack-ruby)
 * lists and maps for bin value not supported yet (stored as bytes at the moment)
 * Supported policies with all parameters for described commands
@@ -36,7 +39,19 @@ Or install it yourself as:
 
 ## Examples
 
-In path `examples`
+Located in path `examples`
+
+Execute in gem root path command `ruby -Ilib:ext -r aerospike_native ./examples/batch.rb` or another example
+
+Here is a list of examples:
+
+* _batch.rb_ - batch command example
+* _operate.rb_ - operate command example
+* _put_get_remove.rb_ - key-value operatations example
+* _query_and_index.rb_ - create/drop index and execute query
+* _query_udf.rb_ - apply udf function to query operation
+* _scan.rb_ - scan records
+* _scan_udf.rb_ - apply udf function to scan operation
 
 ## Usage
 
