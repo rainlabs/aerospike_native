@@ -18,16 +18,11 @@ bool batch_read_callback(const as_batch_read* results, uint32_t n, void* udata)
     char sMsg[1000];
 
     for(i = 0; i < n; i++) {
+        VALUE vRecord = Qnil;
+
         switch(results[i].result) {
         case AEROSPIKE_OK: {
-            VALUE vRecord = rb_record_from_c(&results[i].record, results[i].key);
-
-            if ( rb_block_given_p() ) {
-                rb_yield(vRecord);
-            } else {
-                VALUE *vArray = (VALUE*) udata;
-                rb_ary_push(*vArray, vRecord);
-            }
+            vRecord = rb_record_from_c(&results[i].record, results[i].key);
             break;
         }
         case AEROSPIKE_ERR_RECORD_NOT_FOUND:
@@ -37,6 +32,13 @@ bool batch_read_callback(const as_batch_read* results, uint32_t n, void* udata)
         default:
             sprintf(sMsg, "Aerospike batch read error %d", results[i].result);
             rb_funcall(LoggerInstance, rb_intern("error"), 1, rb_str_new2(sMsg));
+        }
+
+        if ( rb_block_given_p() ) {
+            rb_yield(vRecord);
+        } else {
+            VALUE *vArray = (VALUE*) udata;
+            rb_ary_push(*vArray, vRecord);
         }
     }
 
